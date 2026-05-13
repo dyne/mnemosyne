@@ -31,12 +31,12 @@ func newTS(t *testing.T) *Server {
 		t.Skip("zenroom not found")
 	}
 	dbPath := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	t.Cleanup(func() { os.Remove(dbPath) })
+	t.Cleanup(func() { _ = os.Remove(dbPath) })
 	store, err := storage.NewSQLiteStore(dbPath)
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { _ = store.Close() })
 	exec := zenroom.NewExecutor(bin)
 	tree := merkle.NewTree(exec, store, "../../zenflows")
 	return NewServer(store, tree, "", "../../zenflows", "dev")
@@ -61,7 +61,9 @@ func TestHealth(t *testing.T) {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
 	var resp map[string]string
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if resp["status"] != "ok" {
 		t.Errorf("expected ok, got %q", resp["status"])
 	}
@@ -111,7 +113,9 @@ func TestListContracts(t *testing.T) {
 		Contracts []ContractInfo `json:"contracts"`
 		Directory string         `json:"directory"`
 	}
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(resp.Contracts) == 0 {
 		t.Error("expected at least one contract")
 	}
@@ -204,7 +208,9 @@ func TestRecall_AfterRemember(t *testing.T) {
 	var m1 struct {
 		MemoryID string `json:"memory_id"`
 	}
-	json.Unmarshal(w1.Body.Bytes(), &m1)
+	if err := json.Unmarshal(w1.Body.Bytes(), &m1); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 	// Recall
 	w2 := doReq(s, "GET", "/memories/"+m1.MemoryID, nil)
 	if w2.Code != 200 {
@@ -213,7 +219,9 @@ func TestRecall_AfterRemember(t *testing.T) {
 	var m2 struct {
 		Payload string `json:"payload"`
 	}
-	json.Unmarshal(w2.Body.Bytes(), &m2)
+	if err := json.Unmarshal(w2.Body.Bytes(), &m2); err != nil {
+		t.Fatalf("decode recalled memory: %v", err)
+	}
 	if m2.Payload != "test recall" {
 		t.Errorf("expected 'test recall', got %q", m2.Payload)
 	}
@@ -240,7 +248,9 @@ func TestAnchorBeacon_WithMemories(t *testing.T) {
 		t.Errorf("expected 201, got %d: %s", w.Code, w.Body.String())
 	}
 	var beacon domain.Beacon
-	json.Unmarshal(w.Body.Bytes(), &beacon)
+	if err := json.Unmarshal(w.Body.Bytes(), &beacon); err != nil {
+		t.Fatalf("decode beacon: %v", err)
+	}
 	if beacon.Root == "" || beacon.Root == "not-yet-implemented" {
 		t.Error("expected real merkle root in beacon")
 	}
@@ -254,7 +264,9 @@ func TestAnchorBeacon_UpdatesMemoryBeaconID(t *testing.T) {
 	doReq(s, "POST", "/memories", bytes.NewBufferString(`{"payload":"x"}`))
 	w := doReq(s, "POST", "/checkpoints", nil)
 	var beacon domain.Beacon
-	json.Unmarshal(w.Body.Bytes(), &beacon)
+	if err := json.Unmarshal(w.Body.Bytes(), &beacon); err != nil {
+		t.Fatalf("decode beacon: %v", err)
+	}
 
 	// New memories after checkpoint should start with "current"
 	w2 := doReq(s, "POST", "/memories", bytes.NewBufferString(`{"payload":"y"}`))
@@ -262,7 +274,9 @@ func TestAnchorBeacon_UpdatesMemoryBeaconID(t *testing.T) {
 		MemoryID string `json:"memory_id"`
 		BeaconID string `json:"beacon_id"`
 	}
-	json.Unmarshal(w2.Body.Bytes(), &m)
+	if err := json.Unmarshal(w2.Body.Bytes(), &m); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 	if m.BeaconID != "current" {
 		t.Errorf("new memory should have beacon 'current', got %q", m.BeaconID)
 	}
@@ -328,7 +342,9 @@ func TestBeaconMemories(t *testing.T) {
 		t.Fatalf("anchor: %d: %s", anchor.Code, anchor.Body.String())
 	}
 	var beacon domain.Beacon
-	json.Unmarshal(anchor.Body.Bytes(), &beacon)
+	if err := json.Unmarshal(anchor.Body.Bytes(), &beacon); err != nil {
+		t.Fatalf("decode beacon: %v", err)
+	}
 
 	w := doReq(s, "GET", "/beacons/"+string(beacon.ID)+"/memories", nil)
 	if w.Code != 200 {
@@ -382,7 +398,9 @@ func TestExtendBeacon_InvalidPayload(t *testing.T) {
 		t.Fatalf("anchor: %d: %s", anchor.Code, anchor.Body.String())
 	}
 	var beacon domain.Beacon
-	json.Unmarshal(anchor.Body.Bytes(), &beacon)
+	if err := json.Unmarshal(anchor.Body.Bytes(), &beacon); err != nil {
+		t.Fatalf("decode beacon: %v", err)
+	}
 
 	cases := []struct {
 		name string
@@ -410,7 +428,9 @@ func TestExtendBeacon(t *testing.T) {
 		t.Fatalf("anchor: %d: %s", anchor.Code, anchor.Body.String())
 	}
 	var parent domain.Beacon
-	json.Unmarshal(anchor.Body.Bytes(), &parent)
+	if err := json.Unmarshal(anchor.Body.Bytes(), &parent); err != nil {
+		t.Fatalf("decode parent beacon: %v", err)
+	}
 
 	w := doReq(s, "POST", "/beacons/"+string(parent.ID)+"/extend", bytes.NewBufferString(`{"payload":"child"}`))
 	if w.Code != 201 {
@@ -462,7 +482,9 @@ func TestGenerateRoute_AfterAnchor(t *testing.T) {
 		var m struct {
 			MemoryID string `json:"memory_id"`
 		}
-		json.Unmarshal(w.Body.Bytes(), &m)
+		if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+			t.Fatalf("decode memory %d: %v", i, err)
+		}
 		lastID = m.MemoryID
 	}
 	// Anchor them
@@ -478,7 +500,9 @@ func TestGenerateRoute_AfterAnchor(t *testing.T) {
 		Position  int      `json:"position"`
 		LeafCount int      `json:"leaf_count"`
 	}
-	json.Unmarshal(w.Body.Bytes(), &route)
+	if err := json.Unmarshal(w.Body.Bytes(), &route); err != nil {
+		t.Fatalf("decode route: %v", err)
+	}
 	if len(route.Path) == 0 {
 		t.Error("expected non-empty proof path")
 	}
@@ -513,7 +537,9 @@ func TestWitness_ValidProof(t *testing.T) {
 	var m struct {
 		MemoryID string `json:"memory_id"`
 	}
-	json.Unmarshal(w1.Body.Bytes(), &m)
+	if err := json.Unmarshal(w1.Body.Bytes(), &m); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 
 	// Generate route (all "current" beacon memories)
 	w2 := doReq(s, "GET", "/proofs/"+m.MemoryID, nil)
@@ -524,7 +550,9 @@ func TestWitness_ValidProof(t *testing.T) {
 
 	// Use the route for verification
 	var routeData map[string]any
-	json.Unmarshal(w2.Body.Bytes(), &routeData)
+	if err := json.Unmarshal(w2.Body.Bytes(), &routeData); err != nil {
+		t.Fatalf("decode route: %v", err)
+	}
 	verifyBody, _ := json.Marshal(routeData)
 	w3 := doReq(s, "POST", "/verify", bytes.NewBuffer(verifyBody))
 	if w3.Code != 200 {
@@ -533,7 +561,9 @@ func TestWitness_ValidProof(t *testing.T) {
 	var result struct {
 		Valid bool `json:"valid"`
 	}
-	json.Unmarshal(w3.Body.Bytes(), &result)
+	if err := json.Unmarshal(w3.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode verification: %v", err)
+	}
 	if !result.Valid {
 		t.Logf("proof was not valid, route data: %s", string(verifyBody))
 	}
@@ -558,17 +588,23 @@ func TestCORSPreflight(t *testing.T) {
 
 func TestNewServer_WithWebDir(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(tmpDir+"/index.html", []byte("<html>test</html>"), 0644)
-	os.MkdirAll(tmpDir+"/static", 0755)
-	os.WriteFile(tmpDir+"/static/app.js", []byte("// test"), 0644)
+	if err := os.WriteFile(tmpDir+"/index.html", []byte("<html>test</html>"), 0644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	if err := os.MkdirAll(tmpDir+"/static", 0755); err != nil {
+		t.Fatalf("create static dir: %v", err)
+	}
+	if err := os.WriteFile(tmpDir+"/static/app.js", []byte("// test"), 0644); err != nil {
+		t.Fatalf("write static file: %v", err)
+	}
 
 	bin := zb()
 	if bin == "" {
 		t.Skip("zenroom not found")
 	}
 	store, _ := storage.NewSQLiteStore("/tmp/test-noserve.db")
-	defer store.Close()
-	defer os.Remove("/tmp/test-noserve.db")
+	defer func() { _ = store.Close() }()
+	defer func() { _ = os.Remove("/tmp/test-noserve.db") }()
 	tree := merkle.NewTree(zenroom.NewExecutor(bin), store, "../../zenflows")
 
 	s := NewServer(store, tree, tmpDir, "../../zenflows", "dev")
@@ -592,15 +628,17 @@ func TestNewServer_WithWebDir(t *testing.T) {
 
 func TestNewServer_404OnNonRoot(t *testing.T) {
 	tmpDir := t.TempDir()
-	os.WriteFile(tmpDir+"/index.html", []byte("<html>test</html>"), 0644)
+	if err := os.WriteFile(tmpDir+"/index.html", []byte("<html>test</html>"), 0644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
 
 	bin := zb()
 	if bin == "" {
 		t.Skip("zenroom not found")
 	}
 	store, _ := storage.NewSQLiteStore("/tmp/test-404.db")
-	defer store.Close()
-	defer os.Remove("/tmp/test-404.db")
+	defer func() { _ = store.Close() }()
+	defer func() { _ = os.Remove("/tmp/test-404.db") }()
 	tree := merkle.NewTree(zenroom.NewExecutor(bin), store, "../../zenflows")
 
 	s := NewServer(store, tree, tmpDir, "../../zenflows", "dev")
@@ -641,8 +679,8 @@ func TestListContracts_ErrorPath(t *testing.T) {
 		t.Skip("zenroom not found")
 	}
 	store, _ := storage.NewSQLiteStore("/tmp/test-contracts-err.db")
-	defer store.Close()
-	defer os.Remove("/tmp/test-contracts-err.db")
+	defer func() { _ = store.Close() }()
+	defer func() { _ = os.Remove("/tmp/test-contracts-err.db") }()
 	tree := merkle.NewTree(zenroom.NewExecutor(bin), store, "../../zenflows")
 	// Use valid dir for this test
 	s := NewServer(store, tree, "", "../../zenflows", "dev")
@@ -669,7 +707,9 @@ func TestRememberAndRecallFlow(t *testing.T) {
 	var m1 struct {
 		MemoryID string `json:"memory_id"`
 	}
-	json.Unmarshal(w1.Body.Bytes(), &m1)
+	if err := json.Unmarshal(w1.Body.Bytes(), &m1); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 
 	// Recall
 	w2 := doReq(s, "GET", "/memories/"+m1.MemoryID, nil)
@@ -689,7 +729,9 @@ func TestAnchorAndProofFlow(t *testing.T) {
 		t.Fatalf("Anchor: %d: %s", w.Code, w.Body.String())
 	}
 	var beacon domain.Beacon
-	json.Unmarshal(w.Body.Bytes(), &beacon)
+	if err := json.Unmarshal(w.Body.Bytes(), &beacon); err != nil {
+		t.Fatalf("decode beacon: %v", err)
+	}
 	if beacon.ProofCount != 4 {
 		t.Errorf("expected 4, got %d", beacon.ProofCount)
 	}
@@ -704,7 +746,9 @@ func TestWitness_CompleteFlow(t *testing.T) {
 		var m struct {
 			MemoryID string `json:"memory_id"`
 		}
-		json.Unmarshal(w.Body.Bytes(), &m)
+		if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+			t.Fatalf("decode memory %d: %v", i, err)
+		}
 		ids = append(ids, m.MemoryID)
 	}
 	// Anchor
@@ -718,7 +762,9 @@ func TestWitness_CompleteFlow(t *testing.T) {
 	}
 
 	var proof map[string]any
-	json.Unmarshal(w.Body.Bytes(), &proof)
+	if err := json.Unmarshal(w.Body.Bytes(), &proof); err != nil {
+		t.Fatalf("decode proof: %v", err)
+	}
 
 	// Verify
 	verifyBody, _ := json.Marshal(proof)
@@ -779,7 +825,9 @@ func TestGenerateRoute_SingleMemory(t *testing.T) {
 	var m struct {
 		MemoryID string `json:"memory_id"`
 	}
-	json.Unmarshal(w1.Body.Bytes(), &m)
+	if err := json.Unmarshal(w1.Body.Bytes(), &m); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 	// Single memory — generates a proof
 	w2 := doReq(s, "GET", "/proofs/"+m.MemoryID, nil)
 	if w2.Code != 200 {
@@ -818,10 +866,14 @@ func TestRecall_ClosedStore(t *testing.T) {
 	var m struct {
 		MemoryID string `json:"memory_id"`
 	}
-	json.Unmarshal(w1.Body.Bytes(), &m)
+	if err := json.Unmarshal(w1.Body.Bytes(), &m); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 
 	// Close the store
-	store.Close()
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
 
 	// Try to recall — should get an error
 	w2 := doReq(s, "GET", "/memories/"+m.MemoryID, nil)
@@ -837,7 +889,9 @@ func TestRemember_ClosedStore(t *testing.T) {
 	store, _ := storage.NewSQLiteStore(dbPath)
 	tree := merkle.NewTree(zenroom.NewExecutor(bin), store, "../../zenflows")
 	s := NewServer(store, tree, "", "../../zenflows", "dev")
-	store.Close()
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
 
 	w := doReq(s, "POST", "/memories", bytes.NewBufferString(`{"payload":"test"}`))
 	t.Logf("closed store remember: %d", w.Code)

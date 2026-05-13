@@ -12,12 +12,12 @@ import (
 func newTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
 	path := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	t.Cleanup(func() { os.Remove(path) })
+	t.Cleanup(func() { _ = os.Remove(path) })
 	s, err := NewSQLiteStore(path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -58,9 +58,15 @@ func TestMemoriesByBeacon(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.Remember(ctx, "p1", "h1", "b1")
-	s.Remember(ctx, "p2", "h2", "b1")
-	s.Remember(ctx, "p3", "h3", "b2")
+	if _, err := s.Remember(ctx, "p1", "h1", "b1"); err != nil {
+		t.Fatalf("Remember p1: %v", err)
+	}
+	if _, err := s.Remember(ctx, "p2", "h2", "b1"); err != nil {
+		t.Fatalf("Remember p2: %v", err)
+	}
+	if _, err := s.Remember(ctx, "p3", "h3", "b2"); err != nil {
+		t.Fatalf("Remember p3: %v", err)
+	}
 
 	memories, err := s.MemoriesByBeacon(ctx, domain.BeaconID("b1"))
 	if err != nil {
@@ -113,9 +119,15 @@ func TestSaveAndRetrieveTreeNodes(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.SaveTreeNode(ctx, "b1", 1, "hash1")
-	s.SaveTreeNode(ctx, "b1", 2, "hash2")
-	s.SaveTreeNode(ctx, "b1", 3, "hash3")
+	if err := s.SaveTreeNode(ctx, "b1", 1, "hash1"); err != nil {
+		t.Fatalf("SaveTreeNode 1: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 2, "hash2"); err != nil {
+		t.Fatalf("SaveTreeNode 2: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 3, "hash3"); err != nil {
+		t.Fatalf("SaveTreeNode 3: %v", err)
+	}
 
 	nodes, err := s.TreeNodesByBeacon(ctx, "b1")
 	if err != nil {
@@ -135,8 +147,12 @@ func TestSaveTreeNode_Overwrite(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.SaveTreeNode(ctx, "b1", 1, "old-hash")
-	s.SaveTreeNode(ctx, "b1", 1, "new-hash")
+	if err := s.SaveTreeNode(ctx, "b1", 1, "old-hash"); err != nil {
+		t.Fatalf("SaveTreeNode old: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 1, "new-hash"); err != nil {
+		t.Fatalf("SaveTreeNode new: %v", err)
+	}
 
 	nodes, _ := s.TreeNodesByBeacon(ctx, "b1")
 	if len(nodes) != 1 {
@@ -197,10 +213,12 @@ func TestRecall_ErrorUnmarshal(t *testing.T) {
 func TestNewSQLiteStore_PingError(t *testing.T) {
 	// Create a valid DB file then delete it and try to open
 	path := "/tmp/mnemosyne-test-ping-error.db"
-	os.Remove(path)
+	_ = os.Remove(path)
 	// Write garbage to make it fail
-	os.WriteFile(path, []byte("not a database"), 0644)
-	defer os.Remove(path)
+	if err := os.WriteFile(path, []byte("not a database"), 0644); err != nil {
+		t.Fatalf("write invalid db: %v", err)
+	}
+	defer func() { _ = os.Remove(path) }()
 	_, err := NewSQLiteStore(path)
 	if err == nil {
 		t.Error("expected error for invalid db file")
@@ -224,7 +242,7 @@ func TestAnchorBeacon_DuplicateError(t *testing.T) {
 
 func TestCtxTime_WithValue(t *testing.T) {
 	now := time.Now()
-	ctx := context.WithValue(context.Background(), "time", now)
+	ctx := context.WithValue(context.Background(), timeContextKey, now)
 	got := ctxTime(ctx)
 	if !got.Equal(now) {
 		t.Errorf("expected %v, got %v", now, got)
