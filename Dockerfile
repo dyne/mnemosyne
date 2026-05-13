@@ -24,9 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV ZENROOM_VERSION=5.31.2
 RUN curl -fsSL -o /tmp/zenroom.zip \
     https://github.com/dyne/Zenroom/releases/download/v${ZENROOM_VERSION}/zenroom-linux.zip \
-    && unzip -o /tmp/zenroom.zip -d /usr/local/bin/ \
+    && unzip -o /tmp/zenroom.zip -d /tmp/zenroom-extract/ \
+    && cp /tmp/zenroom-extract/zenroom-*/zenroom /usr/local/bin/zenroom \
     && chmod +x /usr/local/bin/zenroom \
-    && rm /tmp/zenroom.zip
+    && rm -rf /tmp/zenroom.zip /tmp/zenroom-extract
 
 COPY --from=build /mnemosyne /usr/local/bin/mnemosyne
 COPY zenflows/ /zenflows/
