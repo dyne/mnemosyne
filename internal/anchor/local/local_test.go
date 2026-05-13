@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -154,6 +155,54 @@ func TestAnchor_Name(t *testing.T) {
 	a := &Anchor{}
 	if a.Name() != "local_signature" {
 		t.Errorf("expected local_signature, got %s", a.Name())
+	}
+}
+
+func TestAnchor_KeypairReuse(t *testing.T) {
+	bin := zenroomBin()
+	if bin == "" {
+		t.Skip("zenroom not found")
+	}
+
+	// Create a temp dir structure where we control the keypair path:
+	//   tmpDir/contracts/   — contracts copied here
+	//   tmpDir/anchor-keypair.json — keypair stored here (parent of contracts)
+	tmpDir := t.TempDir()
+	contractsDir := tmpDir + "/contracts"
+	_ = os.MkdirAll(contractsDir, 0755)
+
+	// Copy required contracts from the repo
+	for _, name := range []string{"hash.zen", "keygen.zen", "sign.zen", "verify_signature.zen"} {
+		src := "../../../zenflows/" + name
+		if data, err := os.ReadFile(src); err == nil {
+			_ = os.WriteFile(contractsDir+"/"+name, data, 0644)
+		}
+	}
+
+	executor := zenroom.NewExecutor(bin)
+
+	// First call: generates keypair and saves to tmpDir/anchor-keypair.json
+	a1, err := New(contractsDir, "test-reuse", executor)
+	if err != nil {
+		t.Fatalf("New 1: %v", err)
+	}
+	receipt1, err := a1.Anchor(context.Background(), "0xfirst", "checkpoint", "chk_1")
+	if err != nil {
+		t.Fatalf("Anchor 1: %v", err)
+	}
+
+	// Second call with fresh executor: should load keypair from disk
+	a2, err := New(contractsDir, "test-reuse", zenroom.NewExecutor(bin))
+	if err != nil {
+		t.Fatalf("New 2: %v", err)
+	}
+	// Verify the first receipt with the second instance to confirm same keys
+	verification, err := a2.VerifyAnchor(context.Background(), receipt1)
+	if err != nil {
+		t.Fatalf("VerifyAnchor with reused keypair: %v", err)
+	}
+	if !verification.Valid {
+		t.Error("expected valid verification with reused keypair")
 	}
 }
 

@@ -101,6 +101,27 @@ func TestConfigFromEnv_Custom(t *testing.T) {
 	}
 }
 
+func TestConfigFromEnv_AllVars(t *testing.T) {
+	cfg := configFromEnv([]string{
+		"MNEMOSYNE_ADDR=:9090",
+		"MNEMOSYNE_DB=/tmp/test.db",
+		"MNEMOSYNE_CONTRACTS=/tmp/contracts",
+		"MNEMOSYNE_DATA_DIR=/tmp/data",
+		"MNEMOSYNE_WEB=/tmp/web",
+		"MNEMOSYNE_KEY_REF=my-key",
+		"ZENROOM_BIN=/usr/local/bin/zenroom",
+	})
+	if cfg.addr != ":9090" {
+		t.Errorf("expected :9090, got %s", cfg.addr)
+	}
+	if cfg.ledgerKeyRef != "my-key" {
+		t.Errorf("expected my-key, got %s", cfg.ledgerKeyRef)
+	}
+	if cfg.zenroomBin != "/usr/local/bin/zenroom" {
+		t.Errorf("expected custom zenroom path, got %s", cfg.zenroomBin)
+	}
+}
+
 func TestConfigFromEnv_Partial(t *testing.T) {
 	cfg := configFromEnv([]string{"MNEMOSYNE_ADDR=:7777"})
 	if cfg.addr != ":7777" {
@@ -108,6 +129,97 @@ func TestConfigFromEnv_Partial(t *testing.T) {
 	}
 	if cfg.webDir != "web" {
 		t.Errorf("default webDir should be 'web', got %s", cfg.webDir)
+	}
+}
+
+func TestPrintUsage(t *testing.T) {
+	printUsage()
+}
+
+func TestMain_Usage(t *testing.T) {
+	// Test that version is set
+	if version == "" {
+		t.Error("version should not be empty")
+	}
+}
+
+func TestRun_ServerLifecycle(t *testing.T) {
+	bin, err := exec.LookPath("zenroom")
+	if err != nil {
+		t.Skip("zenroom not found")
+	}
+	tmpDir := t.TempDir()
+
+	// Set up contracts
+	contractsDir := tmpDir + "/contracts"
+	_ = os.MkdirAll(contractsDir, 0755)
+	for _, name := range []string{"hash.zen", "keygen.zen", "sign.zen", "verify_signature.zen"} {
+		src := "../../zenflows/" + name
+		if data, err := os.ReadFile(src); err == nil {
+			_ = os.WriteFile(filepath.Join(contractsDir, name), data, 0644)
+		}
+	}
+	webDir := tmpDir + "/web"
+	_ = os.MkdirAll(webDir+"/static", 0755)
+	_ = os.WriteFile(webDir+"/index.html", []byte("<html></html>"), 0644)
+
+	dataDir := tmpDir + "/data"
+
+	// Run server in goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- run([]string{
+			"ZENROOM_BIN=" + bin,
+			"MNEMOSYNE_ADDR=127.0.0.1:0",
+			"MNEMOSYNE_DATA_DIR=" + dataDir,
+			"MNEMOSYNE_DB=" + dataDir + "/serve.db",
+			"MNEMOSYNE_CONTRACTS=" + contractsDir,
+			"MNEMOSYNE_WEB=" + webDir,
+		})
+	}()
+
+	// Give server time to start, then shut it down
+	time.Sleep(400 * time.Millisecond)
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+
+	select {
+	case err := <-errCh:
+		t.Logf("server returned: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not shut down in time")
+	}
+}
+
+func TestRun_MissingContracts(t *testing.T) {
+	bin, err := exec.LookPath("zenroom")
+	if err != nil {
+		t.Skip("zenroom not found")
+	}
+	tmpDir := t.TempDir()
+
+	// Create empty contracts dir — missing keygen.zen will cause ledger init failure
+	contractsDir := tmpDir + "/contracts"
+	_ = os.MkdirAll(contractsDir, 0755)
+
+	dataDir := tmpDir + "/data"
+	_ = os.MkdirAll(dataDir, 0755)
+
+	err = run([]string{
+		"ZENROOM_BIN=" + bin,
+		"MNEMOSYNE_DATA_DIR=" + dataDir,
+		"MNEMOSYNE_DB=" + dataDir + "/test.db",
+		"MNEMOSYNE_CONTRACTS=" + contractsDir,
+	})
+	if err == nil {
+		t.Error("expected error for missing contracts")
+	}
+	t.Logf("error: %v", err)
+}
+
+func TestRun_InvalidDataDir(t *testing.T) {
+	err := run([]string{"MNEMOSYNE_DATA_DIR=/dev/null/invalid"})
+	if err == nil {
+		t.Error("expected error for invalid data dir")
 	}
 }
 

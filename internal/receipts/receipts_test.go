@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dyne/mnemosyne/internal/anchor/local"
+	"github.com/dyne/mnemosyne/internal/domain"
 	"github.com/dyne/mnemosyne/internal/ledger/ndjson"
 	"github.com/dyne/mnemosyne/internal/merkle"
 	"github.com/dyne/mnemosyne/internal/storage"
@@ -109,6 +110,101 @@ func TestExportMemory_WithLedgerAnchor(t *testing.T) {
 	}
 	if receipt.Anchor.Backend != "local_signature" {
 		t.Errorf("expected anchor backend local_signature, got %s", receipt.Anchor.Backend)
+	}
+}
+
+func TestExportMemory_AfterAnchor(t *testing.T) {
+	e := newTestExporter(t)
+	store := e.store
+
+	// Create memories
+	var memIDs []string
+	for i := 0; i < 3; i++ {
+		payload := json.RawMessage(`{"item":` + string(rune('0'+i)) + `}`)
+		hash, _ := e.tree.HashPayload(context.Background(), string(payload))
+		mem, err := store.Remember(context.Background(), payload, hash, "current")
+		if err != nil {
+			t.Fatalf("Remember %d: %v", i, err)
+		}
+		memIDs = append(memIDs, string(mem.ID))
+	}
+
+	// Anchor them — this creates a beacon and reassigns memories
+	leaves := []string{`{"item":0}`, `{"item":1}`, `{"item":2}`}
+	root, err := e.tree.CreateRoot(context.Background(), leaves)
+	if err != nil {
+		t.Fatalf("CreateRoot: %v", err)
+	}
+
+	beaconID := storage.NewBeaconID()
+	beacon := &domain.Beacon{
+		ID:             beaconID,
+		Root:           root,
+		ParentBeaconID: "",
+		ProofCount:     len(leaves),
+	}
+	if err := store.AnchorBeacon(context.Background(), beacon); err != nil {
+		t.Fatalf("AnchorBeacon: %v", err)
+	}
+	if err := store.UpdateBeaconID(context.Background(), "current", string(beaconID)); err != nil {
+		t.Fatalf("UpdateBeaconID: %v", err)
+	}
+
+	// Export receipt for one of the anchored memories
+	receipt, err := e.ExportMemory(context.Background(), memIDs[1])
+	if err != nil {
+		t.Fatalf("ExportMemory: %v", err)
+	}
+	if receipt.Proof.RootID != string(beaconID) {
+		t.Errorf("expected root ID %s, got %s", beaconID, receipt.Proof.RootID)
+	}
+	if receipt.Proof.RootHash == "" {
+		t.Error("expected root hash in receipt proof")
+	}
+	if receipt.Proof.Position == 0 {
+		t.Error("expected non-zero position")
+	}
+	if receipt.Proof.LeafCount == 0 {
+		t.Error("expected non-zero leaf count")
+	}
+}
+
+func TestExportMemory_NoLedgerAnchor(t *testing.T) {
+	bin := zenroomBin()
+	if bin == "" {
+		t.Skip("zenroom not found in PATH")
+	}
+
+	tmpDir := t.TempDir()
+	contractsDir := "../../zenflows"
+
+	store, err := storage.NewSQLiteStore(filepath.Join(tmpDir, "test.db"))
+	if err != nil {
+		t.Fatalf("storage: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	executor := zenroom.NewExecutor(bin)
+	tree := merkle.NewTree(executor, store, contractsDir)
+
+	e := NewExporter(store, tree, nil, nil)
+
+	payload := json.RawMessage(`{"note":"solo"}`)
+	hash, _ := tree.HashPayload(context.Background(), string(payload))
+	mem, err := store.Remember(context.Background(), payload, hash, "current")
+	if err != nil {
+		t.Fatalf("Remember: %v", err)
+	}
+
+	receipt, err := e.ExportMemory(context.Background(), string(mem.ID))
+	if err != nil {
+		t.Fatalf("ExportMemory: %v", err)
+	}
+	if receipt.Ledger.Backend != "" {
+		t.Error("expected empty ledger backend when nil")
+	}
+	if receipt.Anchor.Backend != "" {
+		t.Error("expected empty anchor backend when nil")
 	}
 }
 
