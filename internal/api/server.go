@@ -68,7 +68,9 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"ok"}`))
+	if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+		log.Printf("ERROR writing health response: %v", err)
+	}
 }
 
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {
@@ -165,11 +167,11 @@ func (s *Server) handleAnchorBeacon(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	beaconID := storage.NewBeaconID()
 	beacon := &domain.Beacon{
-		ID:              beaconID,
-		Root:            root,
-		ParentBeaconID:  parentBeaconID,
-		ProofCount:      len(memories),
-		CreatedAt:       now,
+		ID:             beaconID,
+		Root:           root,
+		ParentBeaconID: parentBeaconID,
+		ProofCount:     len(memories),
+		CreatedAt:      now,
 	}
 
 	if err := s.store.AnchorBeacon(r.Context(), beacon); err != nil {
@@ -269,7 +271,9 @@ func (s *Server) handleWitness(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("ERROR writing JSON response: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
@@ -332,16 +336,18 @@ func (s *Server) handleGetContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ext := filepath.Ext(name)
 	contentType := "text/plain; charset=utf-8"
-	if ext == ".lua" {
+	switch ext := filepath.Ext(name); ext {
+	case ".lua":
 		contentType = "text/x-lua; charset=utf-8"
-	} else if ext == ".zen" {
+	case ".zen":
 		contentType = "text/plain; charset=utf-8"
 	}
 
 	w.Header().Set("Content-Type", contentType)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("ERROR writing contract response: %v", err)
+	}
 }
 
 func (s *Server) handleGetBeacon(w http.ResponseWriter, r *http.Request) {
@@ -432,11 +438,11 @@ func (s *Server) handleExtendBeacon(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	childID := storage.NewBeaconID()
 	child := &domain.Beacon{
-		ID:              childID,
-		Root:            root,
-		ParentBeaconID:  string(parentID),
-		ProofCount:      len(leaves),
-		CreatedAt:       now,
+		ID:             childID,
+		Root:           root,
+		ParentBeaconID: string(parentID),
+		ProofCount:     len(leaves),
+		CreatedAt:      now,
 	}
 
 	if err := s.store.AnchorBeacon(r.Context(), child); err != nil {
@@ -477,4 +483,3 @@ func (s *Server) handleExtendBeacon(w http.ResponseWriter, r *http.Request) {
 		"root":    root,
 	})
 }
-

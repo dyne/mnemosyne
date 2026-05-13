@@ -50,7 +50,7 @@ func (e *Executor) exec(zencode bool, script, keys, data []byte) (*Result, error
 		if err != nil {
 			return nil, err
 		}
-		cleanups = append(cleanups, func() { os.Remove(f) })
+		cleanups = append(cleanups, func() { _ = os.Remove(f) })
 		args = append(args, "-k", f)
 	}
 	if len(data) > 0 {
@@ -58,7 +58,7 @@ func (e *Executor) exec(zencode bool, script, keys, data []byte) (*Result, error
 		if err != nil {
 			return nil, err
 		}
-		cleanups = append(cleanups, func() { os.Remove(f) })
+		cleanups = append(cleanups, func() { _ = os.Remove(f) })
 		args = append(args, "-a", f)
 	}
 
@@ -93,12 +93,12 @@ func writeTemp(pattern string, content []byte) (string, error) {
 		return "", fmt.Errorf("temp file: %w", err)
 	}
 	if _, err := f.Write(content); err != nil {
-		f.Close()
-		os.Remove(f.Name())
+		_ = f.Close()
+		_ = os.Remove(f.Name())
 		return "", err
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(f.Name())
 		return "", err
 	}
 	return f.Name(), nil

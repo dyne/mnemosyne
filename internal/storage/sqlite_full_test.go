@@ -12,16 +12,20 @@ import (
 func newTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
 	path := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	t.Cleanup(func() { os.Remove(path) })
+	t.Cleanup(func() { _ = os.Remove(path) })
 	s, err := NewSQLiteStore(path)
-	if err != nil { t.Fatalf("NewSQLiteStore: %v", err) }
-	t.Cleanup(func() { s.Close() })
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
 func TestNewSQLiteStore_OpenError(t *testing.T) {
 	_, err := NewSQLiteStore("/nonexistent/path/to/db.db")
-	if err == nil { t.Error("expected error for invalid path") }
+	if err == nil {
+		t.Error("expected error for invalid path")
+	}
 }
 
 func TestUpdateBeaconID(t *testing.T) {
@@ -29,28 +33,48 @@ func TestUpdateBeaconID(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := s.Remember(ctx, "test", "hash1", "current")
-	if err != nil { t.Fatalf("Remember: %v", err) }
+	if err != nil {
+		t.Fatalf("Remember: %v", err)
+	}
 
 	err = s.UpdateBeaconID(ctx, "current", "beacon-1")
-	if err != nil { t.Fatalf("UpdateBeaconID: %v", err) }
+	if err != nil {
+		t.Fatalf("UpdateBeaconID: %v", err)
+	}
 
 	memories, err := s.MemoriesByBeacon(ctx, domain.BeaconID("beacon-1"))
-	if err != nil { t.Fatalf("MemoriesByBeacon: %v", err) }
-	if len(memories) != 1 { t.Errorf("expected 1 memory, got %d", len(memories)) }
-	if memories[0].BeaconID != "beacon-1" { t.Errorf("expected beacon-1, got %s", memories[0].BeaconID) }
+	if err != nil {
+		t.Fatalf("MemoriesByBeacon: %v", err)
+	}
+	if len(memories) != 1 {
+		t.Errorf("expected 1 memory, got %d", len(memories))
+	}
+	if memories[0].BeaconID != "beacon-1" {
+		t.Errorf("expected beacon-1, got %s", memories[0].BeaconID)
+	}
 }
 
 func TestMemoriesByBeacon(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.Remember(ctx, "p1", "h1", "b1")
-	s.Remember(ctx, "p2", "h2", "b1")
-	s.Remember(ctx, "p3", "h3", "b2")
+	if _, err := s.Remember(ctx, "p1", "h1", "b1"); err != nil {
+		t.Fatalf("Remember p1: %v", err)
+	}
+	if _, err := s.Remember(ctx, "p2", "h2", "b1"); err != nil {
+		t.Fatalf("Remember p2: %v", err)
+	}
+	if _, err := s.Remember(ctx, "p3", "h3", "b2"); err != nil {
+		t.Fatalf("Remember p3: %v", err)
+	}
 
 	memories, err := s.MemoriesByBeacon(ctx, domain.BeaconID("b1"))
-	if err != nil { t.Fatalf("MemoriesByBeacon: %v", err) }
-	if len(memories) != 2 { t.Errorf("expected 2, got %d", len(memories)) }
+	if err != nil {
+		t.Fatalf("MemoriesByBeacon: %v", err)
+	}
+	if len(memories) != 2 {
+		t.Errorf("expected 2, got %d", len(memories))
+	}
 }
 
 func TestBeaconByID(t *testing.T) {
@@ -59,39 +83,63 @@ func TestBeaconByID(t *testing.T) {
 
 	b := &domain.Beacon{ID: domain.BeaconID("b1"), Root: "r1", ProofCount: 3}
 	err := s.AnchorBeacon(ctx, b)
-	if err != nil { t.Fatalf("AnchorBeacon: %v", err) }
+	if err != nil {
+		t.Fatalf("AnchorBeacon: %v", err)
+	}
 
 	got, err := s.BeaconByID(ctx, domain.BeaconID("b1"))
-	if err != nil { t.Fatalf("BeaconByID: %v", err) }
-	if got.Root != "r1" { t.Errorf("expected r1, got %s", got.Root) }
-	if got.ProofCount != 3 { t.Errorf("expected 3, got %d", got.ProofCount) }
+	if err != nil {
+		t.Fatalf("BeaconByID: %v", err)
+	}
+	if got.Root != "r1" {
+		t.Errorf("expected r1, got %s", got.Root)
+	}
+	if got.ProofCount != 3 {
+		t.Errorf("expected 3, got %d", got.ProofCount)
+	}
 }
 
 func TestBeaconByID_NotFound(t *testing.T) {
 	s := newTestStore(t)
 	_, err := s.BeaconByID(context.Background(), domain.BeaconID("nonexistent"))
-	if err != domain.ErrBeaconNotFound { t.Errorf("expected ErrBeaconNotFound, got %v", err) }
+	if err != domain.ErrBeaconNotFound {
+		t.Errorf("expected ErrBeaconNotFound, got %v", err)
+	}
 }
 
 func TestLatestBeacon_NotFound(t *testing.T) {
 	s := newTestStore(t)
 	_, err := s.LatestBeacon(context.Background())
-	if err != domain.ErrBeaconNotFound { t.Errorf("expected ErrBeaconNotFound, got %v", err) }
+	if err != domain.ErrBeaconNotFound {
+		t.Errorf("expected ErrBeaconNotFound, got %v", err)
+	}
 }
 
 func TestSaveAndRetrieveTreeNodes(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.SaveTreeNode(ctx, "b1", 1, "hash1")
-	s.SaveTreeNode(ctx, "b1", 2, "hash2")
-	s.SaveTreeNode(ctx, "b1", 3, "hash3")
+	if err := s.SaveTreeNode(ctx, "b1", 1, "hash1"); err != nil {
+		t.Fatalf("SaveTreeNode 1: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 2, "hash2"); err != nil {
+		t.Fatalf("SaveTreeNode 2: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 3, "hash3"); err != nil {
+		t.Fatalf("SaveTreeNode 3: %v", err)
+	}
 
 	nodes, err := s.TreeNodesByBeacon(ctx, "b1")
-	if err != nil { t.Fatalf("TreeNodesByBeacon: %v", err) }
-	if len(nodes) != 3 { t.Errorf("expected 3 nodes, got %d", len(nodes)) }
+	if err != nil {
+		t.Fatalf("TreeNodesByBeacon: %v", err)
+	}
+	if len(nodes) != 3 {
+		t.Errorf("expected 3 nodes, got %d", len(nodes))
+	}
 	for i, n := range nodes {
-		if n.Index != i+1 { t.Errorf("expected index %d, got %d", i+1, n.Index) }
+		if n.Index != i+1 {
+			t.Errorf("expected index %d, got %d", i+1, n.Index)
+		}
 	}
 }
 
@@ -99,56 +147,82 @@ func TestSaveTreeNode_Overwrite(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	s.SaveTreeNode(ctx, "b1", 1, "old-hash")
-	s.SaveTreeNode(ctx, "b1", 1, "new-hash")
+	if err := s.SaveTreeNode(ctx, "b1", 1, "old-hash"); err != nil {
+		t.Fatalf("SaveTreeNode old: %v", err)
+	}
+	if err := s.SaveTreeNode(ctx, "b1", 1, "new-hash"); err != nil {
+		t.Fatalf("SaveTreeNode new: %v", err)
+	}
 
 	nodes, _ := s.TreeNodesByBeacon(ctx, "b1")
-	if len(nodes) != 1 { t.Error("expected 1 node after overwrite") }
-	if nodes[0].Hash != "new-hash" { t.Errorf("expected new-hash, got %s", nodes[0].Hash) }
+	if len(nodes) != 1 {
+		t.Error("expected 1 node after overwrite")
+	}
+	if nodes[0].Hash != "new-hash" {
+		t.Errorf("expected new-hash, got %s", nodes[0].Hash)
+	}
 }
 
 func TestNewBeaconID(t *testing.T) {
 	id1 := NewBeaconID()
 	id2 := NewBeaconID()
-	if id1 == "" || id2 == "" { t.Error("expected non-empty IDs") }
-	if id1 == id2 { t.Error("expected unique IDs") }
+	if id1 == "" || id2 == "" {
+		t.Error("expected non-empty IDs")
+	}
+	if id1 == id2 {
+		t.Error("expected unique IDs")
+	}
 }
 
 func TestNewMemoryID(t *testing.T) {
 	id1 := NewMemoryID()
 	id2 := NewMemoryID()
-	if id1 == "" || id2 == "" { t.Error("expected non-empty IDs") }
+	if id1 == "" || id2 == "" {
+		t.Error("expected non-empty IDs")
+	}
 }
 
 func TestMemoriesByBeacon_Empty(t *testing.T) {
 	s := newTestStore(t)
 	memories, err := s.MemoriesByBeacon(context.Background(), domain.BeaconID("nobody"))
-	if err != nil { t.Fatalf("MemoriesByBeacon: %v", err) }
-	if len(memories) != 0 { t.Errorf("expected 0, got %d", len(memories)) }
+	if err != nil {
+		t.Fatalf("MemoriesByBeacon: %v", err)
+	}
+	if len(memories) != 0 {
+		t.Errorf("expected 0, got %d", len(memories))
+	}
 }
 
 func TestRecall_ErrorUnmarshal(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	_, err := s.Remember(ctx, "payload", "hash", "b1")
-	if err != nil { t.Fatalf("Remember: %v", err) }
+	if err != nil {
+		t.Fatalf("Remember: %v", err)
+	}
 	m, err := s.Recall(ctx, NewMemoryID())
 	if err == domain.ErrMemoryNotFound {
 		// Expected - the ID we passed won't match the autogenerated one
 		return
 	}
-	if m != nil { t.Logf("unexpected success: %v", m) }
+	if m != nil {
+		t.Logf("unexpected success: %v", m)
+	}
 }
 
 func TestNewSQLiteStore_PingError(t *testing.T) {
 	// Create a valid DB file then delete it and try to open
 	path := "/tmp/mnemosyne-test-ping-error.db"
-	os.Remove(path)
+	_ = os.Remove(path)
 	// Write garbage to make it fail
-	os.WriteFile(path, []byte("not a database"), 0644)
-	defer os.Remove(path)
+	if err := os.WriteFile(path, []byte("not a database"), 0644); err != nil {
+		t.Fatalf("write invalid db: %v", err)
+	}
+	defer func() { _ = os.Remove(path) }()
 	_, err := NewSQLiteStore(path)
-	if err == nil { t.Error("expected error for invalid db file") }
+	if err == nil {
+		t.Error("expected error for invalid db file")
+	}
 }
 
 func TestAnchorBeacon_DuplicateError(t *testing.T) {
@@ -156,21 +230,28 @@ func TestAnchorBeacon_DuplicateError(t *testing.T) {
 	ctx := context.Background()
 	b := &domain.Beacon{ID: domain.BeaconID("b-dup"), Root: "r", ProofCount: 1}
 	err := s.AnchorBeacon(ctx, b)
-	if err != nil { t.Fatalf("first anchor: %v", err) }
+	if err != nil {
+		t.Fatalf("first anchor: %v", err)
+	}
 	// Second anchor with same ID should fail
 	err = s.AnchorBeacon(ctx, b)
-	if err == nil { t.Error("expected duplicate key error") }
+	if err == nil {
+		t.Error("expected duplicate key error")
+	}
 }
 
 func TestCtxTime_WithValue(t *testing.T) {
 	now := time.Now()
-	ctx := context.WithValue(context.Background(), "time", now)
+	ctx := context.WithValue(context.Background(), timeContextKey, now)
 	got := ctxTime(ctx)
-	if !got.Equal(now) { t.Errorf("expected %v, got %v", now, got) }
+	if !got.Equal(now) {
+		t.Errorf("expected %v, got %v", now, got)
+	}
 }
 
 func TestCtxTime_Default(t *testing.T) {
 	got := ctxTime(context.Background())
-	if got.IsZero() { t.Error("expected non-zero time") }
+	if got.IsZero() {
+		t.Error("expected non-zero time")
+	}
 }
-
