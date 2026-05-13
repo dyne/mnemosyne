@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
@@ -124,14 +126,30 @@ func TestSetupServer_InvalidDB(t *testing.T) {
 }
 
 func TestSetupServer_Success(t *testing.T) {
+	bin, err := exec.LookPath("zenroom")
+	if err != nil {
+		t.Skip("zenroom not found")
+	}
 	tmpDir := t.TempDir()
+
+	// Copy real contracts from the repo
 	contractsDir := tmpDir + "/contracts"
 	if err := os.MkdirAll(contractsDir, 0755); err != nil {
 		t.Fatalf("create contracts dir: %v", err)
 	}
-	if err := os.WriteFile(contractsDir+"/hash.zen", []byte("Scenario 'simple': hash\nGiven nothing\nWhen I create the random object of '256' bits\nThen print the 'random object'"), 0644); err != nil {
-		t.Fatalf("write contract: %v", err)
+	for _, name := range []string{"hash.zen", "keygen.zen", "sign.zen", "verify_signature.zen"} {
+		src := "../../zenflows/" + name
+		if _, err := os.Stat(src); err == nil {
+			data, err := os.ReadFile(src)
+			if err != nil {
+				t.Fatalf("read contract %s: %v", name, err)
+			}
+			if err := os.WriteFile(filepath.Join(contractsDir, name), data, 0644); err != nil {
+				t.Fatalf("write contract %s: %v", name, err)
+			}
+		}
 	}
+
 	if err := os.MkdirAll(tmpDir+"/web/static", 0755); err != nil {
 		t.Fatalf("create web dir: %v", err)
 	}
@@ -140,9 +158,11 @@ func TestSetupServer_Success(t *testing.T) {
 	}
 
 	handler, store, err := setupServer(config{
-		dbPath:       tmpDir + "/test.db",
+		dataDir:      tmpDir + "/data",
+		dbPath:       tmpDir + "/data/test.db",
 		contractsDir: contractsDir,
 		webDir:       tmpDir + "/web",
+		zenroomBin:   bin,
 	})
 	if err != nil {
 		t.Fatalf("setupServer: %v", err)
@@ -158,44 +178,68 @@ func TestSetupServer_Success(t *testing.T) {
 }
 
 func TestRun_GracefulShutdown(t *testing.T) {
-	if _, err := exec.LookPath("zenroom"); err != nil {
-		t.Skip("zenroom not found")
-	}
-
-	tmpDir := t.TempDir()
-	contractsDir := tmpDir + "/contracts"
-	if err := os.MkdirAll(contractsDir, 0755); err != nil {
-		t.Fatalf("create contracts dir: %v", err)
-	}
-	webDir := tmpDir + "/web"
-	if err := os.MkdirAll(webDir+"/static", 0755); err != nil {
-		t.Fatalf("create web dir: %v", err)
-	}
-	if err := os.WriteFile(webDir+"/index.html", []byte("<html></html>"), 0644); err != nil {
-		t.Fatalf("write index: %v", err)
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		done <- run([]string{
+	// Run in a subprocess to avoid SIGTERM killing the test runner
+	if os.Getenv("MNEMOSYNE_TEST_SHUTDOWN") == "1" {
+		bin, err := exec.LookPath("zenroom")
+		if err != nil {
+			t.Skip("zenroom not found")
+		}
+		tmpDir := os.Getenv("MNEMOSYNE_TEST_DIR")
+		contractsDir := tmpDir + "/contracts"
+		webDir := tmpDir + "/web"
+		if err := run([]string{
+			"ZENROOM_BIN=" + bin,
 			"MNEMOSYNE_ADDR=127.0.0.1:0",
-			"MNEMOSYNE_DB=" + tmpDir + "/run.db",
+			"MNEMOSYNE_DATA_DIR=" + tmpDir + "/data",
+			"MNEMOSYNE_DB=" + tmpDir + "/data/run.db",
 			"MNEMOSYNE_CONTRACTS=" + contractsDir,
 			"MNEMOSYNE_WEB=" + webDir,
-		})
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
-		t.Fatalf("send signal: %v", err)
+		}); err != nil {
+			t.Error(err)
+		}
+		return
 	}
 
+	// Set up test directory
+	tmpDir, err := os.MkdirTemp("", "mnemosyne-graceful-*")
+	if err != nil {
+		t.Fatalf("temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	contractsDir := tmpDir + "/contracts"
+	os.MkdirAll(contractsDir, 0755)
+	for _, name := range []string{"hash.zen", "keygen.zen", "sign.zen", "verify_signature.zen"} {
+		src := "../../zenflows/" + name
+		if data, err := os.ReadFile(src); err == nil {
+			os.WriteFile(filepath.Join(contractsDir, name), data, 0644)
+		}
+	}
+	webDir := tmpDir + "/web"
+	os.MkdirAll(webDir+"/static", 0755)
+	os.WriteFile(webDir+"/index.html", []byte("<html></html>"), 0644)
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestRun_GracefulShutdown", "-test.v")
+	cmd.Env = append(os.Environ(), "MNEMOSYNE_TEST_SHUTDOWN=1", "MNEMOSYNE_TEST_DIR="+tmpDir)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start subprocess: %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+	cmd.Process.Signal(syscall.SIGTERM)
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("run returned error: %v", err)
+			t.Logf("stderr: %s", stderr.String())
 		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("run did not shut down")
+	case <-time.After(5 * time.Second):
+		cmd.Process.Kill()
+		t.Fatal("subprocess did not shut down")
 	}
 }

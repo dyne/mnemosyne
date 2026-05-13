@@ -42,7 +42,12 @@ func newTestServer(t *testing.T) *Server {
 	executor := zenroom.NewExecutor(bin)
 	tree := merkle.NewTree(executor, store, "../../zenflows")
 
-	return NewServer(store, tree, "", "../../zenflows", "dev")
+	return NewServer(ServerConfig{
+		Store:        store,
+		Tree:         tree,
+		ContractsDir: "../../zenflows",
+		Version:      "dev",
+	})
 }
 
 func TestRememberAndRecall(t *testing.T) {
