@@ -1,0 +1,253 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mnemosyne",
+    "description": "Cryptographic memory archive — an append-only Merkle tree service for verifiable attestations, events, documents, and workflows. All cryptographic operations are delegated to Zenroom VM.",
+    "version": "0.1.0",
+    "contact": { "name": "Dyne.org", "url": "https://dyne.org" },
+    "license": { "name": "AGPL-3.0" }
+  },
+  "servers": [{ "url": "/", "description": "Local Mnemosyne server" }],
+  "tags": [
+    { "name": "Memories", "description": "Immutable memory storage" },
+    { "name": "Routes", "description": "Merkle inclusion proofs" },
+    { "name": "Beacons", "description": "Cryptographic checkpoints" },
+    { "name": "Contracts", "description": "Auditable Zenroom cryptographic contracts" },
+    { "name": "System", "description": "Health and operational endpoints" }
+  ],
+  "paths": {
+    "/version": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Get version",
+        "operationId": "version",
+        "responses": {
+          "200": {
+            "description": "Version information",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "version": { "type": "string" }, "project": { "type": "string" } } } } }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health check",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string" } } } } }
+          }
+        }
+      }
+    },
+    "/memories": {
+      "post": {
+        "tags": ["Memories"],
+        "summary": "Remember a new memory",
+        "operationId": "remember",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["payload"],
+                "properties": { "payload": { "description": "Arbitrary JSON value to archive" } },
+                "example": { "payload": { "event": "document-signed", "document_id": "abc123" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Memory created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Memory" } } } },
+          "400": { "description": "Invalid payload", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/memories/{id}": {
+      "get": {
+        "tags": ["Memories"],
+        "summary": "Recall a memory",
+        "operationId": "recall",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Memory retrieved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Memory" } } } },
+          "404": { "description": "Memory not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/proofs/{memory_id}": {
+      "get": {
+        "tags": ["Routes"],
+        "summary": "Generate an inclusion proof",
+        "operationId": "generateRoute",
+        "parameters": [{ "name": "memory_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Inclusion proof", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Route" } } } },
+          "404": { "description": "Memory not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/verify": {
+      "post": {
+        "tags": ["Routes"],
+        "summary": "Verify an inclusion proof",
+        "operationId": "witness",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessResult" } } } },
+          "400": { "description": "Invalid request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/checkpoints": {
+      "post": {
+        "tags": ["Beacons"],
+        "summary": "Create a beacon checkpoint",
+        "description": "Anchors all pending memories (beacon='current') into a Merkle tree and creates a signed checkpoint.",
+        "operationId": "anchorBeacon",
+        "responses": {
+          "201": { "description": "Beacon created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Beacon" } } } },
+          "400": { "description": "No memories to anchor", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/beacons/{id}": {
+      "get": {
+        "tags": ["Beacons"],
+        "summary": "Get a beacon by ID",
+        "operationId": "getBeacon",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Beacon details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Beacon" } } } },
+          "404": { "description": "Beacon not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/beacons/{id}/extend": {
+      "post": {
+        "tags": ["Beacons"],
+        "summary": "Extend a beacon with a new leaf",
+        "description": "Takes all existing leaves from the parent beacon, adds a new payload, recomputes the Merkle root via Zenroom, and creates a child beacon. This is how you add a leaf to an existing tree — the parent beacon remains immutable, and a new child beacon is created with the combined tree.",
+        "operationId": "extendBeacon",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "Parent beacon ID", "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["payload"], "properties": { "payload": { "description": "New leaf data to add" } } } } }
+        },
+        "responses": {
+          "201": { "description": "Child beacon created with the new leaf added" },
+          "404": { "description": "Parent beacon not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/beacons/{id}/memories": {
+      "get": {
+        "tags": ["Beacons"],
+        "summary": "List memories in a beacon",
+        "description": "Returns all memories anchored to this beacon. Use this to see which leaves are in a given tree.",
+        "operationId": "getBeaconMemories",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Memories in the beacon", "content": { "application/json": { "schema": { "type": "object", "properties": { "beacon_id": { "type": "string" }, "memories": { "type": "array", "items": { "$ref": "#/components/schemas/Memory" } } } } } } }
+        }
+      }
+    },
+    "/contracts": {
+      "get": {
+        "tags": ["Contracts"],
+        "summary": "List all Zenroom contracts",
+        "operationId": "listContracts",
+        "responses": {
+          "200": {
+            "description": "Contract list",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "directory": { "type": "string" }, "contracts": { "type": "array", "items": { "$ref": "#/components/schemas/ContractInfo" } } } } } }
+          }
+        }
+      }
+    },
+    "/contracts/{name}": {
+      "get": {
+        "tags": ["Contracts"],
+        "summary": "Get a contract's source code",
+        "operationId": "getContract",
+        "parameters": [{ "name": "name", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Contract source code as plain text" },
+          "404": { "description": "Contract not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Memory": {
+        "type": "object",
+        "properties": {
+          "memory_id": { "type": "string", "description": "Unique identifier" },
+          "payload": { "description": "The archived content" },
+          "leaf_hash": { "type": "string", "description": "Zenroom-computed SHA256 hash (base64)" },
+          "beacon_id": { "type": "string", "description": "ID of the beacon this memory is anchored to" },
+          "inserted_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Route": {
+        "type": "object",
+        "properties": {
+          "leaf": { "type": "string", "description": "Leaf data (JSON-encoded payload)" },
+          "root": { "type": "string", "description": "Merkle tree root (constellation) hash" },
+          "path": { "type": "array", "items": { "type": "string" }, "description": "Ordered sibling hashes from leaf to root" },
+          "position": { "type": "integer", "description": "1-indexed position of the leaf" },
+          "leaf_count": { "type": "integer", "description": "Total leaves in the tree" }
+        }
+      },
+      "WitnessRequest": {
+        "type": "object",
+        "required": ["leaf", "root", "path", "position", "leaf_count"],
+        "properties": {
+          "leaf": { "type": "string" },
+          "root": { "type": "string" },
+          "path": { "type": "array", "items": { "type": "string" } },
+          "position": { "type": "integer" },
+          "leaf_count": { "type": "integer" }
+        }
+      },
+      "WitnessResult": {
+        "type": "object",
+        "properties": {
+          "valid": { "type": "boolean", "description": "Whether the proof is cryptographically valid" },
+          "leaf": { "type": "string" },
+          "root": { "type": "string" }
+        }
+      },
+      "Beacon": {
+        "type": "object",
+        "properties": {
+          "beacon_id": { "type": "string" },
+          "root": { "type": "string", "description": "Merkle tree root at checkpoint" },
+          "parent_beacon_id": { "type": "string", "description": "ID of the previous beacon in the chain, if any" },
+          "signed_root": { "type": "string", "description": "Cryptographic signature over the root" },
+          "proof_count": { "type": "integer" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ContractInfo": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "size": { "type": "integer", "description": "File size in bytes" },
+          "language": { "type": "string", "enum": ["zencode", "lua"] }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" } }
+      }
+    }
+  }
+}

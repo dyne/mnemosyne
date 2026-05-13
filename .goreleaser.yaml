@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: mnemosyne
+    binary: mnemosyne
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: binaries
+    builds: [mnemosyne]
+    name_template: >-
+      mnemosyne-{{- if eq .Os "linux" -}}Linux
+         {{- else if eq .Os "darwin" -}}Darwin
+         {{- else if eq .Os "windows" -}}Windows
+         {{- else -}}{{ .Os }}{{- end -}}-{{- if eq .Arch "amd64" -}}x86_64
+      {{- else if and (eq .Os "linux") (eq .Arch "arm64") -}}aarch64
+      {{- else if and (eq .Os "darwin") (eq .Arch "arm64") -}}arm64
+      {{- else -}}{{ .Arch }}{{- end -}}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - zenflows/*
+      - web/**/*
+
+checksum:
+  name_template: "{{ .ProjectName }}_v{{ .Version }}_checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+sboms:
+  - id: spdx
+    artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+
+signs:
+  - id: cosign
+    cmd: cosign
+    args:
+      - sign-blob
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+      - --yes
+    artifacts: all
+    output: true

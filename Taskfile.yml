@@ -1,0 +1,65 @@
+version: '3'
+
+vars:
+  PORT: '{{default "8546" .PORT}}'
+
+tasks:
+  test:
+    cmds:
+      - go test ./...
+
+  lint:
+    cmds:
+      - task lint:design
+
+  lint:design:
+    cmds:
+      - if [ -f DESIGN.md ]; then npx --yes @google/design.md lint DESIGN.md; fi
+
+  run:
+    desc: Start the mnemosyne server
+    cmds:
+      - go build -o bin/mnemosyne ./cmd/mnemosyne
+      - MNEMOSYNE_ADDR=:{{.PORT}} ./bin/mnemosyne
+
+  tunnel:
+    desc: Create a Cloudflare quick tunnel to expose the local server
+    cmds:
+      - cloudflared tunnel --url http://localhost:{{.PORT}}
+
+  serve:
+    desc: Start server in background and expose via Cloudflare tunnel
+    cmds:
+      - go build -o bin/mnemosyne ./cmd/mnemosyne
+      - MNEMOSYNE_ADDR=:{{.PORT}} ./bin/mnemosyne &
+      - sleep 1
+      - cloudflared tunnel --url http://localhost:{{.PORT}}
+
+  build:
+    cmds:
+      - go build -o bin/mnemosyne ./cmd/mnemosyne
+
+  docker:build:
+    desc: Build the Docker image
+    cmds:
+      - docker compose build
+
+  docker:up:
+    desc: Start the server and optional tunnel via Docker Compose
+    cmds:
+      - docker compose up -d
+
+  docker:tunnel:
+    desc: Start server + Cloudflare tunnel via Docker Compose
+    cmds:
+      - docker compose --profile tunnel up -d
+
+  docker:down:
+    desc: Stop Docker Compose services
+    cmds:
+      - docker compose down
+
+  docker:logs:
+    desc: Tail logs from Docker Compose services
+    cmds:
+      - docker compose logs -f

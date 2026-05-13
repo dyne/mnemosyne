@@ -1,0 +1,11 @@
+# Hash a string value using SHA256 (default).
+# Input: {"input": "string to hash"}
+# Output: {"hash": "base64-encoded-hash"}
+
+Scenario 'simple': hash
+
+Given I have a 'string' named 'input'
+
+When I create the hash of 'input'
+
+Then print the 'hash'

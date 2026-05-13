@@ -1,0 +1,13 @@
+# Sign a string payload using ECDSA.
+# Keys input: {"keypair": {"private_key": "base64-encoded-private"}}
+# Data input: {"payload": "string to sign"}
+# Output: {"signature": "base64-encoded-signature"}
+
+Scenario 'ecdsa': sign
+
+Given I have a 'keypair'
+and I have a 'string' named 'payload'
+
+When I create the ecdsa signature of 'payload'
+
+Then print the 'ecdsa signature'

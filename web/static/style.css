@@ -1,0 +1,242 @@
+:root {
+  --navy: #0a1628;
+  --deep-navy: #060f1e;
+  --parchment: #f4e4c1;
+  --brass: #c9a96e;
+  --silver: #b8c5d6;
+  --slate: #2d3a4a;
+  --dark-slate: #1a2535;
+  --text: #d4d9e2;
+  --text-dim: #8899aa;
+  --accent: #c9a96e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Georgia', serif;
+  background: var(--deep-navy);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  text-align: center;
+  padding: 3rem 0 2rem;
+  border-bottom: 1px solid var(--slate);
+  margin-bottom: 2rem;
+}
+
+header h1 {
+  font-family: 'Courier New', monospace;
+  font-size: 2.4rem;
+  color: var(--brass);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+header .subtitle {
+  font-family: 'Georgia', serif;
+  color: var(--silver);
+  font-style: italic;
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.constellation {
+  font-family: 'Courier New', monospace;
+  color: var(--silver);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  margin: 1rem 0;
+  user-select: none;
+}
+
+nav {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+nav a, nav button {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: var(--silver);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--slate);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+nav a:hover, nav button:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+  background: rgba(201, 169, 110, 0.05);
+}
+
+.card {
+  background: var(--navy);
+  border: 1px solid var(--slate);
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: var(--brass);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.hash, .proof-path {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--silver);
+  word-break: break-all;
+  background: var(--deep-navy);
+  padding: 0.75rem;
+  border-left: 2px solid var(--brass);
+  margin: 0.5rem 0;
+}
+
+.hash-label {
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.25rem;
+}
+
+textarea, input[type="text"] {
+  width: 100%;
+  background: var(--deep-navy);
+  border: 1px solid var(--slate);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  resize: vertical;
+}
+
+textarea:focus, input:focus {
+  outline: none;
+  border-color: var(--brass);
+}
+
+button[type="submit"] {
+  background: transparent;
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+button[type="submit"]:hover {
+  background: rgba(201, 169, 110, 0.1);
+}
+
+.valid {
+  color: #7eb77f;
+  border-left-color: #7eb77f;
+}
+
+.invalid {
+  color: #c4746e;
+  border-left-color: #c4746e;
+}
+
+.result {
+  margin-top: 1rem;
+}
+
+.result-ok {
+  border-left: 2px solid #7eb77f;
+}
+
+.result-err {
+  border-left: 2px solid #c4746e;
+  color: #c4746e;
+}
+
+pre.hash {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--silver);
+  word-break: break-all;
+  background: var(--deep-navy);
+  padding: 0.75rem;
+  border-left: 2px solid var(--brass);
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+}
+
+.help-text {
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.contract-source {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  background: var(--deep-navy);
+  padding: 1rem;
+  border-left: 2px solid var(--brass);
+  margin: 0.5rem 0;
+  max-height: 500px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.contract-source code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+}
+
+.contract-item {
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
+  margin: 0.25rem 0;
+  background: var(--deep-navy);
+  border-left: 2px solid var(--brass);
+  transition: background 0.15s;
+}
+
+.contract-item:hover {
+  background: rgba(201, 169, 110, 0.08);
+}
+
+footer {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+  border-top: 1px solid var(--slate);
+  margin-top: 3rem;
+}
+
+.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}

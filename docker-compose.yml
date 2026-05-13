@@ -1,0 +1,35 @@
+services:
+  mnemosyne:
+    build: .
+    container_name: mnemosyne
+    ports:
+      - "${MNEMOSYNE_PORT:-8546}:8546"
+    volumes:
+      - mnemosyne_data:/data
+    environment:
+      - MNEMOSYNE_ADDR=:8546
+      - MNEMOSYNE_DB=/data/mnemosyne.db
+      - MNEMOSYNE_CONTRACTS=/zenflows
+      - MNEMOSYNE_WEB=/web
+      - ZENROOM_BIN=/usr/local/bin/zenroom
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8546/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: mnemosyne-tunnel
+    command: tunnel --url http://mnemosyne:8546
+    depends_on:
+      mnemosyne:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  mnemosyne_data:

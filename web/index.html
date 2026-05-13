@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mnemosyne — cryptographic memory archive</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <script src="/static/app.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="constellation">
+        * &nbsp; · &nbsp; * &nbsp; &nbsp; · &nbsp; * &nbsp; &nbsp; &nbsp; *<br>
+        &nbsp; * &nbsp; &nbsp; · &nbsp; * &nbsp; · &nbsp; &nbsp; * &nbsp; ·<br>
+        · &nbsp; &nbsp; * &nbsp; &nbsp; · &nbsp; * &nbsp; &nbsp; &nbsp; · &nbsp; *
+      </div>
+      <h1>Mnemosyne</h1>
+      <p class="subtitle">titaness of memory · cryptographic archive</p>
+    </header>
+
+    <nav>
+      <a href="#" onclick="showSection('remember');return false">Remember</a>
+      <a href="#" onclick="showSection('recall');return false">Recall</a>
+      <a href="#" onclick="showSection('route');return false">Route</a>
+      <a href="#" onclick="showSection('witness');return false">Witness</a>
+      <a href="#" onclick="showSection('beacon');return false">Beacon</a>
+      <a href="#" onclick="showSection('contracts');loadContracts();return false">Contracts</a>
+    </nav>
+
+    <!-- Remember: Create memory -->
+    <section id="remember" class="card">
+      <h2>Remember</h2>
+      <p class="help-text">Immortalize a memory in the archive. Once stored, it cannot be altered.</p>
+      <form onsubmit="rememberMemory(event)" id="remember-form">
+        <textarea id="remember-payload" rows="6" placeholder='{"key": "value"}' required></textarea>
+        <button type="submit">Archive Memory</button>
+        <span class="spinner" id="remember-spinner" style="display:none;">&hellip;</span>
+      </form>
+      <div id="remember-result" class="result"></div>
+    </section>
+
+    <!-- Recall: Retrieve memory -->
+    <section id="recall" class="card" style="display:none;">
+      <h2>Recall</h2>
+      <p class="help-text">Retrieve a memory from the archive by its identifier.</p>
+      <form onsubmit="recallMemory(event)" id="recall-form">
+        <input type="text" id="recall-id" placeholder="Memory ID (e.g. 20260513T092718.906837Z)" required>
+        <button type="submit">Retrieve</button>
+        <span class="spinner" id="recall-spinner" style="display:none;">&hellip;</span>
+      </form>
+      <div id="recall-result" class="result"></div>
+    </section>
+
+    <!-- Route: Generate proof -->
+    <section id="route" class="card" style="display:none;">
+      <h2>Route</h2>
+      <p class="help-text">Generate a cryptographic inclusion proof for a memory.</p>
+      <form onsubmit="generateRoute(event)" id="route-form">
+        <input type="text" id="route-memory-id" placeholder="Memory ID" required>
+        <button type="submit">Generate Route</button>
+        <span class="spinner" id="route-spinner" style="display:none;">&hellip;</span>
+      </form>
+      <div id="route-result" class="result"></div>
+    </section>
+
+    <!-- Witness: Verify proof -->
+    <section id="witness" class="card" style="display:none;">
+      <h2>Witness</h2>
+      <p class="help-text">Verify an inclusion proof against the Merkle tree.</p>
+      <form onsubmit="witnessProof(event)" id="witness-form">
+        <textarea id="witness-data" rows="10" placeholder='{"leaf":"...","root":"...","path":["..."],"position":1,"leaf_count":4}' required></textarea>
+        <button type="submit">Verify Route</button>
+        <span class="spinner" id="witness-spinner" style="display:none;">&hellip;</span>
+      </form>
+      <div id="witness-result" class="result"></div>
+    </section>
+
+    <!-- Beacon: Create checkpoint -->
+    <section id="beacon" class="card" style="display:none;">
+      <h2>Beacon</h2>
+      <p class="help-text">
+        <strong>How it works:</strong> New memories enter a pending pool (beacon <code>current</code>).
+        When you anchor, all pending memories are built into a Merkle tree and sealed into a beacon.
+        Each beacon links to its parent, forming a chain of checkpoints.
+      </p>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
+        <form onsubmit="anchorBeacon(event)" id="beacon-form" style="flex:0 0 auto;">
+          <button type="submit">Anchor Pending Memories</button>
+          <span class="spinner" id="beacon-spinner" style="display:none;">&hellip;</span>
+        </form>
+        <form onsubmit="lookupBeacon(event)" id="beacon-lookup-form" style="flex:1;display:flex;gap:0.5rem;">
+          <input type="text" id="beacon-lookup-id" placeholder="Beacon ID" style="margin:0;flex:1;">
+          <button type="submit">Lookup</button>
+        </form>
+      </div>
+      <div id="beacon-result" class="result"></div>
+      <div id="beacon-memories" class="result"></div>
+    </section>
+
+    <!-- Contracts: Audit cryptographic contracts -->
+    <section id="contracts" class="card" style="display:none;">
+      <h2>Contracts</h2>
+      <p class="help-text">Every cryptographic operation in Mnemosyne is defined by an auditable Zenroom contract. Click a contract to view its source.</p>
+      <div id="contracts-list"></div>
+      <div id="contracts-source" class="result"></div>
+    </section>
+
+    <footer>
+      &copy; 2026 Dyne.org — Mnemosyne <span id="footer-version">v0.1.0</span><br>
+      All cryptographic operations delegated to Zenroom VM<br>
+      <a href="/docs" style="color:var(--brass);">API Reference</a> &mdash; <a href="/openapi.json" style="color:var(--brass);">OpenAPI Spec</a> &mdash; <a href="/contracts" style="color:var(--brass);">Contracts</a>
+    </footer>
+  </div>
+
+  <script>
+    function showSection(name) {
+      document.querySelectorAll('section.card').forEach(s => s.style.display = 'none');
+      var el = document.getElementById(name);
+      if (el) el.style.display = 'block';
+    }
+    showSection('remember');
+  </script>
+</body>
+</html>

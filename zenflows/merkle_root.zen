@@ -1,0 +1,11 @@
+# Create a Merkle root from a string array.
+# Input: {"data": ["leaf1", "leaf2", "leaf3", "leaf4"]}
+# Output: {"merkle_root": "base64-encoded-root"}
+
+Scenario 'merkle': create merkle root
+
+Given I have a 'string array' named 'data'
+
+When I create the merkle root of 'data'
+
+Then print the 'merkle root'
