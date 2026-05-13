@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dyne/mnemosyne/internal/anchor/local"
 	"github.com/dyne/mnemosyne/internal/api"
+	"github.com/dyne/mnemosyne/internal/ledger/ndjson"
 	"github.com/dyne/mnemosyne/internal/merkle"
 	"github.com/dyne/mnemosyne/internal/storage"
 	"github.com/dyne/mnemosyne/internal/zenroom"
@@ -41,18 +43,73 @@ const banner = `
 func main() {
 	fmt.Print(banner)
 	fmt.Printf("version %s\n\n", version)
+
+	// Check for CLI subcommands
+	args := os.Args[1:]
+	if len(args) > 0 {
+		switch args[0] {
+		case "serve":
+			// default — handled below
+		case "help", "-h", "--help":
+			printUsage()
+			return
+		case "version", "-v", "--version":
+			fmt.Printf("mnemosyne version %s\n", version)
+			return
+		default:
+			fmt.Printf("unknown command: %s\n", args[0])
+			printUsage()
+			os.Exit(1)
+		}
+	}
+
 	if err := run(os.Environ()); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("server stopped")
 }
 
+func printUsage() {
+	fmt.Print(`
+Usage: mnemosyne [command]
+
+Commands:
+  serve            Start the HTTP API server (default)
+  help             Show this help
+
+Environment:
+  MNEMOSYNE_ADDR        Address to listen on (default :8080)
+  MNEMOSYNE_DATA_DIR    Data directory (default data/)
+  MNEMOSYNE_DB          SQLite database path
+  MNEMOSYNE_CONTRACTS   Zenroom contracts directory
+  MNEMOSYNE_WEB         Web UI directory
+  MNEMOSYNE_KEY_REF     Key reference for signing
+  ZENROOM_BIN           Path to zenroom binary (default zenroom)
+
+API endpoints:
+  POST /memories           Remember a memory
+  GET  /memories/{id}      Recall a memory
+  POST /checkpoints        Seal memories into a Merkle root
+  GET  /proofs/{id}        Generate inclusion proof
+  POST /verify             Verify a Merkle proof
+  POST /verify/full        Full trust-chain verification
+  POST /anchors            Create an anchor
+  GET  /ledger/events      Browse ledger events
+  POST /ledger/verify      Verify ledger chain integrity
+  GET  /dashboard          Dashboard status
+  GET  /docs               API documentation UI
+  GET  /                   Web UI
+`)
+}
+
 type config struct {
 	contractsDir string
+	dataDir      string
 	dbPath       string
 	zenroomBin   string
 	addr         string
 	webDir       string
+	ledgerKeyRef string
 }
 
 func configFromEnv(environ []string) config {
@@ -67,24 +124,58 @@ func configFromEnv(environ []string) config {
 	}
 	return config{
 		contractsDir: lookup("MNEMOSYNE_CONTRACTS", "zenflows"),
-		dbPath:       lookup("MNEMOSYNE_DB", filepath.Join(os.TempDir(), "mnemosyne.db")),
+		dataDir:      lookup("MNEMOSYNE_DATA_DIR", "data"),
+		dbPath:       lookup("MNEMOSYNE_DB", filepath.Join("data", "mnemosyne.db")),
 		zenroomBin:   lookup("ZENROOM_BIN", "zenroom"),
 		addr:         lookup("MNEMOSYNE_ADDR", ":8080"),
 		webDir:       lookup("MNEMOSYNE_WEB", "web"),
+		ledgerKeyRef: lookup("MNEMOSYNE_KEY_REF", "mnemosyne-local"),
 	}
 }
 
 func setupServer(cfg config) (http.Handler, *storage.SQLiteStore, error) {
+	executor := zenroom.NewExecutor(cfg.zenroomBin)
+
+	// Ensure data directory exists
+	if err := os.MkdirAll(cfg.dataDir, 0755); err != nil {
+		return nil, nil, fmt.Errorf("data dir: %w", err)
+	}
+
+	// Storage
 	store, err := storage.NewSQLiteStore(cfg.dbPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("storage: %w", err)
 	}
 
-	executor := zenroom.NewExecutor(cfg.zenroomBin)
+	// Merkle tree
 	tree := merkle.NewTree(executor, store, cfg.contractsDir)
-	server := api.NewServer(store, tree, cfg.webDir, cfg.contractsDir, version)
-	handler := corsMiddleware(server.Handler())
 
+	// Ledger
+	ledgerPath := filepath.Join(cfg.dataDir, "ledger.ndjson")
+	ledger, err := ndjson.New(ledgerPath, cfg.contractsDir, cfg.ledgerKeyRef, executor)
+	if err != nil {
+		_ = store.Close()
+		return nil, nil, fmt.Errorf("ledger: %w", err)
+	}
+
+	// Anchor
+	anchor, err := local.New(cfg.contractsDir, cfg.ledgerKeyRef, executor)
+	if err != nil {
+		_ = store.Close()
+		return nil, nil, fmt.Errorf("anchor: %w", err)
+	}
+
+	server := api.NewServer(api.ServerConfig{
+		Store:        store,
+		Tree:         tree,
+		Ledger:       ledger,
+		Anchor:       anchor,
+		WebDir:       cfg.webDir,
+		ContractsDir: cfg.contractsDir,
+		Version:      version,
+	})
+
+	handler := corsMiddleware(server.Handler())
 	return handler, store, nil
 }
 
@@ -121,8 +212,11 @@ func run(environ []string) error {
 	}()
 
 	fmt.Printf("mnemosyne listening on %s\n", cfg.addr)
-	fmt.Printf("  database: %s\n", cfg.dbPath)
+	fmt.Printf("  database:  %s\n", cfg.dbPath)
+	fmt.Printf("  ledger:    %s\n", filepath.Join(cfg.dataDir, "ledger.ndjson"))
 	fmt.Printf("  contracts: %s\n", cfg.contractsDir)
+	fmt.Printf("  web:       %s\n", cfg.webDir)
+	fmt.Printf("  anchor:    local_signature\n")
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		return fmt.Errorf("server: %w", err)

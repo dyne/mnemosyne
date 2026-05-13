@@ -1,0 +1,13 @@
+# Verify a hash-based signature by recomputing the expected hash.
+# Keys input: {"keypair": {"public_key": "base64"}}
+# Data input: {"payload": "...", "signature": "base64"}
+# Output: {"hash": "base64"} — caller compares hash with signature in Go
+Scenario 'hash': verify
+
+Given I have a 'string' named 'public_key' in 'keypair'
+and I have a 'string' named 'payload'
+
+When I append 'public_key' to 'payload'
+When I create the hash of 'payload'
+
+Then print the 'hash'

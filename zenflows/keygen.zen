@@ -1,0 +1,8 @@
+# Generate a random key for HMAC-style signing via hash.
+# Output: {"hash": "base64-encoded-key"}
+Scenario 'hash': create keypair
+
+Given nothing
+When I create the random of '256' bits
+When I create the hash of 'random'
+Then print the 'hash'

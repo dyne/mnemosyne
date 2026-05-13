@@ -9,11 +9,13 @@
   },
   "servers": [{ "url": "/", "description": "Local Mnemosyne server" }],
   "tags": [
+    { "name": "System", "description": "Health and operational endpoints" },
     { "name": "Memories", "description": "Immutable memory storage" },
-    { "name": "Routes", "description": "Merkle inclusion proofs" },
     { "name": "Beacons", "description": "Cryptographic checkpoints" },
-    { "name": "Contracts", "description": "Auditable Zenroom cryptographic contracts" },
-    { "name": "System", "description": "Health and operational endpoints" }
+    { "name": "Routes", "description": "Merkle inclusion proofs" },
+    { "name": "Ledger", "description": "Tamper-evident event ledger" },
+    { "name": "Anchors", "description": "External notarization" },
+    { "name": "Contracts", "description": "Auditable Zenroom cryptographic contracts" }
   ],
   "paths": {
     "/version": {
@@ -38,6 +40,19 @@
           "200": {
             "description": "Server is healthy",
             "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string" } } } } }
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Dashboard stats",
+        "operationId": "dashboard",
+        "responses": {
+          "200": {
+            "description": "Dashboard statistics",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "memory_count": { "type": "integer" }, "beacon_count": { "type": "integer" }, "ledger_events": { "type": "integer" }, "ledger_head": { "type": "string" }, "storage_backend": { "type": "string" }, "ledger_backend": { "type": "string" }, "anchor_backend": { "type": "string" } } } } }
           }
         }
       }
@@ -78,30 +93,16 @@
         }
       }
     },
-    "/proofs/{memory_id}": {
+    "/memories/{id}/receipt": {
       "get": {
-        "tags": ["Routes"],
-        "summary": "Generate an inclusion proof",
-        "operationId": "generateRoute",
-        "parameters": [{ "name": "memory_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "tags": ["Memories"],
+        "summary": "Export receipt bundle for a memory",
+        "description": "Returns a portable verification bundle containing the memory, its Merkle proof, ledger event, checkpoint, and anchor receipt — everything needed to verify offline.",
+        "operationId": "receiptExport",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
-          "200": { "description": "Inclusion proof", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Route" } } } },
+          "200": { "description": "Receipt bundle", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Receipt" } } } },
           "404": { "description": "Memory not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
-        }
-      }
-    },
-    "/verify": {
-      "post": {
-        "tags": ["Routes"],
-        "summary": "Verify an inclusion proof",
-        "operationId": "witness",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessRequest" } } }
-        },
-        "responses": {
-          "200": { "description": "Verification result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessResult" } } } },
-          "400": { "description": "Invalid request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
         }
       }
     },
@@ -155,6 +156,110 @@
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
           "200": { "description": "Memories in the beacon", "content": { "application/json": { "schema": { "type": "object", "properties": { "beacon_id": { "type": "string" }, "memories": { "type": "array", "items": { "$ref": "#/components/schemas/Memory" } } } } } } }
+        }
+      }
+    },
+    "/proofs/{memory_id}": {
+      "get": {
+        "tags": ["Routes"],
+        "summary": "Generate an inclusion proof",
+        "operationId": "generateRoute",
+        "parameters": [{ "name": "memory_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Inclusion proof", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Route" } } } },
+          "404": { "description": "Memory not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/verify": {
+      "post": {
+        "tags": ["Routes"],
+        "summary": "Verify an inclusion proof",
+        "operationId": "witness",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Verification result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessResult" } } } },
+          "400": { "description": "Invalid request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/verify/full": {
+      "post": {
+        "tags": ["Routes"],
+        "summary": "Full trust-chain verification",
+        "description": "Walks the entire trust chain: memory hash → Merkle inclusion → ledger event → ledger chain → checkpoint → anchor. Returns a checklist with pass/fail status for each step.",
+        "operationId": "fullVerify",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FullVerifyRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Full verification result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FullVerifyResult" } } } },
+          "400": { "description": "Invalid request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/anchors": {
+      "post": {
+        "tags": ["Anchors"],
+        "summary": "Create an anchor",
+        "description": "Notarizes a checkpoint by signing the Merkle root via the configured anchor backend (e.g. local_signature). Creates a portable anchor receipt.",
+        "operationId": "createAnchor",
+        "responses": {
+          "201": { "description": "Anchor created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Anchor" } } } },
+          "400": { "description": "No beacon to anchor", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/anchors/{id}": {
+      "get": {
+        "tags": ["Anchors"],
+        "summary": "Get an anchor receipt",
+        "operationId": "getAnchor",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Anchor receipt", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Anchor" } } } },
+          "404": { "description": "Anchor not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/ledger/events": {
+      "get": {
+        "tags": ["Ledger"],
+        "summary": "List ledger events",
+        "operationId": "ledgerEvents",
+        "responses": {
+          "200": {
+            "description": "Ledger event list",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "$ref": "#/components/schemas/LedgerEvent" } }, "backend": { "type": "string" } } } } }
+          }
+        }
+      }
+    },
+    "/ledger/head": {
+      "get": {
+        "tags": ["Ledger"],
+        "summary": "Get current ledger head",
+        "operationId": "ledgerHead",
+        "responses": {
+          "200": {
+            "description": "Current ledger head",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LedgerEvent" } } }
+          }
+        }
+      }
+    },
+    "/ledger/verify": {
+      "post": {
+        "tags": ["Ledger"],
+        "summary": "Verify ledger chain integrity",
+        "description": "Walks the entire ledger hash chain and verifies each event links to its predecessor via cryptographic hash.",
+        "operationId": "ledgerVerify",
+        "responses": {
+          "200": { "description": "Ledger verification result", "content": { "application/json": { "schema": { "type": "object", "properties": { "valid": { "type": "boolean" }, "event_count": { "type": "integer" }, "backend": { "type": "string" }, "first_event_hash": { "type": "string" }, "last_event_hash": { "type": "string" } } } } } }
         }
       }
     },
@@ -225,6 +330,40 @@
           "root": { "type": "string" }
         }
       },
+      "FullVerifyRequest": {
+        "type": "object",
+        "required": ["memory_id"],
+        "properties": {
+          "memory_id": { "type": "string", "description": "ID of the memory to verify" },
+          "receipt": { "description": "Optional receipt bundle for offline verification", "$ref": "#/components/schemas/Receipt" }
+        }
+      },
+      "FullVerifyResult": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["valid", "invalid", "incomplete"], "description": "Overall verification status" },
+          "checks": { "type": "array", "items": { "$ref": "#/components/schemas/VerificationCheck" } }
+        }
+      },
+      "VerificationCheck": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "enum": ["memory_hash", "merkle_inclusion", "ledger_event", "ledger_chain", "checkpoint", "anchor"] },
+          "status": { "type": "string", "enum": ["ok", "failed", "warning", "error", "skipped"] },
+          "details": { "type": "string" }
+        }
+      },
+      "Receipt": {
+        "type": "object",
+        "properties": {
+          "receipt_version": { "type": "string", "description": "Receipt format version" },
+          "memory": { "$ref": "#/components/schemas/Memory" },
+          "proof": { "$ref": "#/components/schemas/Route" },
+          "ledger": { "type": "object", "properties": { "backend": { "type": "string" }, "event_seq": { "type": "integer" }, "event_hash": { "type": "string" }, "ledger_head": { "type": "string" } } },
+          "checkpoint": { "$ref": "#/components/schemas/Beacon" },
+          "anchor": { "$ref": "#/components/schemas/Anchor" }
+        }
+      },
       "Beacon": {
         "type": "object",
         "properties": {
@@ -234,6 +373,28 @@
           "signed_root": { "type": "string", "description": "Cryptographic signature over the root" },
           "proof_count": { "type": "integer" },
           "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Anchor": {
+        "type": "object",
+        "properties": {
+          "anchor_id": { "type": "string" },
+          "backend": { "type": "string", "description": "Anchor backend used (e.g. local_signature)" },
+          "beacon_id": { "type": "string" },
+          "signed_root": { "type": "string", "description": "Zenroom-signed Merkle root" },
+          "status": { "type": "string", "enum": ["confirmed", "pending"], "description": "Anchor confirmation status" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "LedgerEvent": {
+        "type": "object",
+        "properties": {
+          "seq": { "type": "integer", "description": "Monotonic sequence number" },
+          "type": { "type": "string", "description": "Event type (e.g. MEMORY_RECORDED, ROOT_SEALED, ANCHOR_CREATED)" },
+          "hash": { "type": "string", "description": "SHA256 hash of this event" },
+          "prev_hash": { "type": "string", "description": "Hash of the previous event in the chain" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "data": { "type": "object", "description": "Event payload" }
         }
       },
       "ContractInfo": {

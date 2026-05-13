@@ -353,3 +353,103 @@ viewContract = function(name) {
       sourceEl.innerHTML = '<p style="color:#c4746e;">Failed to load: ' + escapeHtml(err.message) + '</p>';
     });
 };
+
+// ------ Dashboard ------
+
+function loadDashboard() {
+  var el = document.getElementById('dashboard-content');
+  el.innerHTML = '<p style="color:var(--text-dim);">Loading...</p>';
+  fetch('/dashboard')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var html = '';
+      html += '<div class="hash-label">Storage</div>';
+      html += '<div class="hash">' + escapeHtml(d.storage_backend || 'sqlite') + ' operational store</div>';
+      if (d.pending_memories !== undefined) {
+        html += '<div style="color:var(--text-dim);font-size:0.75rem;margin-left:0.5rem;">Pending memories: ' + d.pending_memories + '</div>';
+      }
+      if (d.latest_beacon) {
+        html += '<div style="color:var(--text-dim);font-size:0.75rem;margin-left:0.5rem;">Latest beacon: ' + escapeHtml(d.latest_beacon.beacon_id || '') + '</div>';
+      }
+      html += '<br>';
+      html += '<div class="hash-label">Ledger</div>';
+      html += '<div class="hash">' + escapeHtml(d.ledger_backend || 'none') + ' hash-chain ledger</div>';
+      if (d.ledger_head) {
+        html += '<div style="color:var(--text-dim);font-size:0.75rem;margin-left:0.5rem;">Latest event: #' + d.ledger_head.seq + '</div>';
+      }
+      html += '<br>';
+      html += '<div class="hash-label">Anchor</div>';
+      html += '<div class="hash">' + escapeHtml(d.anchor_backend || 'none') + '</div>';
+      el.innerHTML = html;
+    })
+    .catch(function(err) {
+      el.innerHTML = '<p style="color:#c4746e;">Failed: ' + escapeHtml(err.message) + '</p>';
+    });
+}
+
+// ------ Ledger ------
+
+function loadLedger() {
+  var headEl = document.getElementById('ledger-head');
+  var eventsEl = document.getElementById('ledger-events');
+  headEl.innerHTML = '<p style="color:var(--text-dim);">Loading...</p>';
+  eventsEl.innerHTML = '';
+  fetch('/ledger/events')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var hh = '';
+      if (data.ledger_head) {
+        hh += '<div class="hash-label">Ledger Head</div>';
+        hh += '<div class="hash">Seq: #' + data.ledger_head.seq + ' &mdash; ' + escapeHtml(String(data.ledger_head.event_hash).substring(0, 24)) + '...</div>';
+      }
+      headEl.innerHTML = hh;
+      var events = data.events || [];
+      var html = '<div class="hash-label">Events (' + events.length + ')</div>';
+      if (events.length === 0) {
+        html += '<div class="hash" style="color:var(--text-dim);">No events yet.</div>';
+      } else {
+        (events.slice().reverse()).forEach(function(e) {
+          var tc = e.event_type === 'ROOT_SEALED' ? 'var(--brass)' : e.event_type === 'CHECKPOINT_CREATED' ? '#7eb77f' : 'var(--silver)';
+          html += '<div class="hash" style="margin:0.25rem 0;"><span style="color:var(--text-dim);">#' + e.seq + '</span> <span style="color:' + tc + ';">' + escapeHtml(e.event_type) + '</span> <span style="color:var(--text-dim);font-size:0.7rem;">' + escapeHtml(String(e.event_hash).substring(0, 16)) + '...</span></div>';
+        });
+      }
+      eventsEl.innerHTML = html;
+    })
+    .catch(function(err) { headEl.innerHTML = '<p style="color:#c4746e;">Failed: ' + escapeHtml(err.message) + '</p>'; });
+}
+
+function verifyLedger() {
+  setSpinner('ledger', true);
+  var resultEl = document.getElementById('ledger-result');
+  var ok = function(v) {
+    var html = v.valid
+      ? '<div class="hash valid">&#10003; Ledger chain intact (' + v.total_events + ' events)</div>'
+      : '<div class="hash invalid">&#10007; Ledger chain broken!</div>';
+    resultEl.innerHTML = html;
+    setSpinner('ledger', false);
+  };
+  api('/ledger/verify', 'POST').then(ok).catch(function(err) { resultEl.innerHTML = '<div class="result-err">' + escapeHtml(err.message) + '</div>'; setSpinner('ledger', false); });
+}
+
+// ------ Full Verification ------
+
+function fullVerify(e) {
+  e.preventDefault();
+  var id = document.getElementById('verify-memory-id').value.trim();
+  if (!id) return;
+  setSpinner('verify', true);
+  api('/verify/full', 'POST', { memory_id: id })
+    .then(function(result) {
+      var html = '<div class="hash ' + (result.status === 'valid' ? 'valid' : 'invalid') + '">Status: ' + result.status.toUpperCase() + '</div>';
+      (result.checks || []).forEach(function(c) {
+        var icon = c.status === 'ok' ? '&#10003;' : c.status === 'failed' ? '&#10007;' : c.status === 'warning' ? '&#9888;' : '&#8212;';
+        var cls = c.status === 'ok' ? 'valid' : c.status === 'failed' ? 'invalid' : '';
+        html += '<div class="hash ' + cls + '" style="margin:0.25rem 0;">' + icon + ' <strong>' + escapeHtml(c.name) + '</strong>: ' + escapeHtml(c.details) + '</div>';
+      });
+      document.getElementById('verify-result').innerHTML = html;
+    })
+    .catch(function(err) {
+      document.getElementById('verify-result').innerHTML = '<div class="result-err">' + escapeHtml(err.message) + '</div>';
+    })
+    .finally(function() { setSpinner('verify', false); });
+}

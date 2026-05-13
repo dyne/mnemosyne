@@ -124,7 +124,9 @@ temp/
 .idea_modules/
 
 # Databases and local state
+data/
 *.db
+*-keypair.json
 *.sqlite
 *.sqlite3
 *.dump

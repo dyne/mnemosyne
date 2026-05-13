@@ -17,6 +17,24 @@ Mnemosyne is an **append-only Merkle tree service** — a transparency log for a
 
 All cryptographic operations are delegated to [**Zenroom**](https://zenroom.org), a deterministic secure language VM. Application code **never** implements hashing, signing, or Merkle proof logic — it only orchestrates.
 
+## The three-layer model
+
+Mnemosyne separates operational persistence, tamper evidence, and external notarization into three distinct layers:
+
+```
+Storage = where operational data lives
+Ledger  = where tamper-evident history is recorded
+Anchor  = where signed checkpoints / Merkle roots are notarized externally
+```
+
+| Layer | Role | Trust model | Backend |
+|-------|------|-------------|---------|
+| **Storage** | Holds memories, roots, proofs, receipts | Not trusted — verifiable against ledger | SQLite (pluggable) |
+| **Ledger** | Append-only signed event log with hash-chain linking | Tamper-evident | NDJSON hash chain (pluggable) |
+| **Anchor** | External notarization of checkpoints | Proof of existence | Local Zenroom signatures (pluggable) |
+
+All three layers have **pluggable backends** — see [Backends](docs/backends.md) for the full matrix of implemented and planned backends.
+
 ## Concepts
 
 ### Memory — the leaf
@@ -51,6 +69,14 @@ Witness is the act of verifying a route. Zenroom recomputes the Merkle root from
   <img src="assets/witness.svg" alt="Witness — verify or reject a proof">
 </p>
 
+### Receipt — the portable proof
+
+A receipt is a portable verification bundle containing everything needed to verify a memory offline — the memory itself, its Merkle proof, the ledger event, the checkpoint, and the anchor receipt. Receipts can be exported via API or CLI and verified without the running server.
+
+### Full verification
+
+Full verification walks the entire trust chain end to end: memory payload → Zenroom hash → Merkle leaf → Merkle proof → Merkle root → ledger event → ledger hash chain → checkpoint → anchor receipt. Each step returns pass/fail/warning, making tampering immediately visible.
+
 ## Architecture
 
 <p align="center">
@@ -58,6 +84,8 @@ Witness is the act of verifying a route. Zenroom recomputes the Merkle root from
 </p>
 
 **The cryptographic boundary is absolute.** Go code only orchestrates — calling Zenroom for every hash, every Merkle root, every proof, every signature. There is no `sha256.Sum()` anywhere in the codebase.
+
+See [Architecture](docs/architecture.md) for repository layout, data flow diagrams, and key design decisions.
 
 ## Quick start
 
@@ -76,24 +104,52 @@ Open `http://localhost:8546` — you'll see the maritime observatory UI.
 
 ## API
 
-| Verb | Path | Concept |
-|------|------|---------|
+| Method | Path | Description |
+|--------|------|-------------|
+| **System** | | |
+| `GET` | `/health` | Health check |
+| `GET` | `/version` | Version info |
+| `GET` | `/dashboard` | Dashboard stats |
+| **Memories** | | |
 | `POST` | `/memories` | Remember — archive a memory |
 | `GET` | `/memories/{id}` | Recall — retrieve a memory |
+| `GET` | `/memories/{id}/receipt` | Export — portable receipt bundle |
+| **Beacons** | | |
 | `POST` | `/checkpoints` | Anchor — seal a beacon |
 | `POST` | `/beacons/{id}/extend` | Extend — add a leaf to a beacon |
 | `GET` | `/beacons/{id}` | Inspect — view beacon details |
 | `GET` | `/beacons/{id}/memories` | Leaves — list memories in a beacon |
-| `GET` | `/proofs/{id}` | Route — generate inclusion proof |
+| **Proofs** | | |
+| `GET` | `/proofs/{memory_id}` | Route — generate inclusion proof |
 | `POST` | `/verify` | Witness — verify a proof |
-| `GET` | `/contracts` | Audit — list Zenroom contracts |
-| `GET` | `/contracts/{name}` | Source — read contract source |
-| `GET` | `/health` | Pulse — health check |
-| `GET` | `/version` | Version — build version |
-| `GET` | `/docs` | Reference — Swagger UI |
-| `GET` | `/openapi.json` | Spec — OpenAPI 3.0 |
+| `POST` | `/verify/full` | Full trust-chain verification |
+| **Ledger** | | |
+| `GET` | `/ledger/events` | List ledger events |
+| `GET` | `/ledger/head` | Current ledger head |
+| `POST` | `/ledger/verify` | Verify ledger chain integrity |
+| **Anchors** | | |
+| `POST` | `/anchors` | Create an anchor receipt |
+| `GET` | `/anchors/{id}` | Get anchor receipt |
+| **Contracts** | | |
+| `GET` | `/contracts` | List Zenroom contracts |
+| `GET` | `/contracts/{name}` | Read contract source |
+| **Docs** | | |
+| `GET` | `/docs` | Swagger UI |
+| `GET` | `/openapi.json` | OpenAPI 3.0 specification |
 
 Full interactive documentation at `/docs`.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [API Reference](docs/api.md) | Complete endpoint reference |
+| [Architecture](docs/architecture.md) | Repository layout and data flows |
+| [Storage / Ledger / Anchor](docs/storage-ledger-anchor.md) | The three-layer trust model |
+| [Backends](docs/backends.md) | Pluggable backend matrix and interfaces |
+| [Crypto Boundary](docs/crypto-boundary.md) | Zenroom delegation contract |
+| [Receipts](docs/receipts.md) | Portable verification bundle format |
+| [Verification](docs/verification.md) | Full trust-chain verification walk |
 
 ## Vocabulary
 
@@ -106,6 +162,10 @@ Full interactive documentation at `/docs`.
 | Verification | **Witness** | Bearing testimony to truth |
 | Append | **Remember** | Committing to memory |
 | Merkle tree | **Tree of memories** | Rooted in truth |
+| Operational store | **Storage** | Where data lives — not trusted |
+| Event log | **Ledger** | Tamper-evident history |
+| Notarization | **Anchor** | External proof of existence |
+| Proof bundle | **Receipt** | Portable offline verification |
 
 ## Cryptographic contracts
 
@@ -115,9 +175,11 @@ Every cryptographic operation is a **versioned Zenroom contract** in `zenflows/`
 |----------|----------|---------|
 | `hash.zen` | Zencode | Deterministic SHA256 hashing |
 | `merkle_root.zen` | Zencode | Merkle tree root from data array |
+| `keygen.zen` | Zencode | Generate key material via Zenroom random + hash |
+| `sign.zen` | Zencode | Sign payload via HMAC (keyed hash) |
+| `verify_signature.zen` | Zencode | Verify signature via keyed hash |
 | `proof_generate.lua` | Lua | Generate inclusion proof |
 | `proof_verify.lua` | Lua | Verify inclusion proof |
-| `sign.zen` | Zencode | ECDSA signature generation |
 
 All contracts are auditable at runtime — visit `/contracts` or click **Contracts** in the UI to read the source with syntax highlighting.
 
@@ -138,6 +200,8 @@ The color palette: deep navy (`#0a1628`), parchment (`#f4e4c1`), brass (`#c9a96e
 - **Immutability** — once a beacon anchors a tree, its root becomes a permanent cryptographic checkpoint
 - **Deterministic builds** — `CGO_ENABLED=0`, pure Go, reproducible binaries
 - **Transparent contracts** — all cryptographic logic is in human-readable Zencode/Lua scripts served at `/contracts`
+- **Tamper-evident ledger** — every action is recorded as a hash-chain-linked signed event; any modification breaks the chain
+- **Portable receipts** — proof bundles can be exported and verified offline without the running server
 - **SBOM + provenance** — every release includes SPDX SBOM, cosign signatures, and SLSA build attestation
 
 ## License

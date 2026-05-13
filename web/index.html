@@ -22,13 +22,22 @@
     </header>
 
     <nav>
+      <a href="#" onclick="showSection('dashboard');loadDashboard();return false">Dashboard</a>
       <a href="#" onclick="showSection('remember');return false">Remember</a>
       <a href="#" onclick="showSection('recall');return false">Recall</a>
       <a href="#" onclick="showSection('route');return false">Route</a>
       <a href="#" onclick="showSection('witness');return false">Witness</a>
       <a href="#" onclick="showSection('beacon');return false">Beacon</a>
+      <a href="#" onclick="showSection('ledger');loadLedger();return false">Ledger</a>
+      <a href="#" onclick="showSection('verify-page');return false">Verify</a>
       <a href="#" onclick="showSection('contracts');loadContracts();return false">Contracts</a>
     </nav>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="card" style="display:none;">
+      <h2>Dashboard</h2>
+      <div id="dashboard-content"><p class="help-text">Loading...</p></div>
+    </section>
 
     <!-- Remember: Create memory -->
     <section id="remember" class="card">
@@ -98,6 +107,31 @@
       </div>
       <div id="beacon-result" class="result"></div>
       <div id="beacon-memories" class="result"></div>
+    </section>
+
+    <!-- Ledger: Event explorer -->
+    <section id="ledger" class="card" style="display:none;">
+      <h2>Ledger Explorer</h2>
+      <p class="help-text">Tamper-evident append-only event history. Every action is recorded and hash-chained.</p>
+      <div id="ledger-head"></div>
+      <div id="ledger-events"></div>
+      <div style="margin-top:1rem;">
+        <button onclick="verifyLedger()">Verify Ledger Chain</button>
+        <span class="spinner" id="ledger-spinner" style="display:none;">&hellip;</span>
+      </div>
+      <div id="ledger-result" class="result"></div>
+    </section>
+
+    <!-- Verify: Full-chain verification -->
+    <section id="verify-page" class="card" style="display:none;">
+      <h2>Full Verification</h2>
+      <p class="help-text">Walk the entire trust chain: memory → leaf → Merkle root → ledger event → checkpoint → anchor.</p>
+      <form onsubmit="fullVerify(event)" id="verify-form">
+        <input type="text" id="verify-memory-id" placeholder="Memory ID" required>
+        <button type="submit">Verify Trust Chain</button>
+        <span class="spinner" id="verify-spinner" style="display:none;">&hellip;</span>
+      </form>
+      <div id="verify-result" class="result"></div>
     </section>
 
     <!-- Contracts: Audit cryptographic contracts -->
