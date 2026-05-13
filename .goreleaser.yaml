@@ -8,6 +8,7 @@ before:
 
 builds:
   - id: mnemosyne
+    main: ./cmd/mnemosyne
     binary: mnemosyne
     env:
       - CGO_ENABLED=0
