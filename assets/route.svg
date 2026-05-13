@@ -1,0 +1,29 @@
+<svg width="360" height="180" viewBox="0 0 360 180" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tree -->
+  <circle cx="180" cy="20" r="8" fill="#c9a96e"/>
+  <text x="180" y="15" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="6">★ root</text>
+
+  <line x1="180" y1="28" x2="100" y2="65" stroke="#b8c5d6" stroke-width="1.5"/>
+  <line x1="180" y1="28" x2="260" y2="65" stroke="#c9a96e" stroke-width="2.5"/>
+
+  <circle cx="100" cy="68" r="6" fill="#b8c5d6"/>
+  <circle cx="260" cy="68" r="6" fill="#c9a96e"/>
+
+  <line x1="100" y1="74" x2="60" y2="110" stroke="#b8c5d6" stroke-width="1"/>
+  <line x1="100" y1="74" x2="140" y2="110" stroke="#b8c5d6" stroke-width="1"/>
+  <line x1="260" y1="74" x2="220" y2="110" stroke="#c9a96e" stroke-width="2.5"/>
+  <line x1="260" y1="74" x2="300" y2="110" stroke="#b8c5d6" stroke-width="1"/>
+
+  <rect x="48" y="112" width="24" height="14" rx="3" fill="#b8c5d6" opacity="0.5"/>
+  <rect x="128" y="112" width="24" height="14" rx="3" fill="#b8c5d6" opacity="0.5"/>
+  <rect x="208" y="112" width="24" height="14" rx="3" fill="#c9a96e" opacity="0.9"/>
+  <rect x="288" y="112" width="24" height="14" rx="3" fill="#b8c5d6" opacity="0.5"/>
+
+  <!-- Highlight: the proven leaf -->
+  <rect x="205" y="109" width="30" height="20" rx="4" fill="none" stroke="#c9a96e" stroke-width="2" stroke-dasharray="3,2"/>
+
+  <!-- Labels -->
+  <text x="220" y="100" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="7">proven leaf</text>
+  <text x="100" y="148" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="9">Proof path: 3 sibling hashes</text>
+  <text x="100" y="165" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="9">Recomputed root matches constellation ★</text>
+</svg>

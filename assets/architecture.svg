@@ -1,0 +1,39 @@
+<svg width="560" height="200" viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="560" height="200" rx="12" fill="#faf8f5"/>
+  <!-- User -->
+  <circle cx="70" cy="100" r="22" fill="#e8d5b7" stroke="#c9a96e" stroke-width="2"/>
+  <text x="70" y="105" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="14">U</text>
+  <text x="70" y="140" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="9">Client</text>
+
+  <!-- API -->
+  <rect x="130" y="78" width="100" height="44" rx="8" fill="#0a1628" stroke="#c9a96e" stroke-width="1.5"/>
+  <text x="180" y="102" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="8">Go API</text>
+  <text x="180" y="114" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="6">net/http</text>
+
+  <!-- SQLite -->
+  <rect x="270" y="78" width="80" height="44" rx="8" fill="#1a2d4a" stroke="#5a8a6a" stroke-width="1.5"/>
+  <text x="310" y="102" text-anchor="middle" fill="#7eb77f" font-family="monospace" font-size="8">SQLite</text>
+  <text x="310" y="114" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="6">append-only</text>
+
+  <!-- Zenroom -->
+  <rect x="390" y="78" width="120" height="44" rx="8" fill="#2d1a3a" stroke="#9a5aaa" stroke-width="1.5"/>
+  <text x="450" y="102" text-anchor="middle" fill="#c9a0da" font-family="monospace" font-size="8">Zenroom VM</text>
+  <text x="450" y="114" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="6">crypto boundary</text>
+
+  <!-- Arrows -->
+  <line x1="92" y1="100" x2="128" y2="100" stroke="#c9a96e" stroke-width="1.5" marker-end="url(#a2)"/>
+  <line x1="230" y1="100" x2="268" y2="100" stroke="#8899aa" stroke-width="1" marker-end="url(#a3)"/>
+  <line x1="350" y1="100" x2="388" y2="100" stroke="#9a5aaa" stroke-width="1.5" marker-end="url(#a4)"/>
+
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#c9a96e"/></marker>
+    <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#8899aa"/></marker>
+    <marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#9a5aaa"/></marker>
+  </defs>
+
+  <!-- Labels -->
+  <text x="180" y="170" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="8">orchestration only</text>
+  <text x="450" y="170" text-anchor="middle" fill="#c9a0da" font-family="sans-serif" font-size="8">hashing · proofs · signing</text>
+  <text x="180" y="185" text-anchor="middle" fill="#8899aa" font-family="monospace" font-size="7">never implements crypto</text>
+  <text x="450" y="185" text-anchor="middle" fill="#c9a0da" font-family="monospace" font-size="7">all crypto through contracts</text>
+</svg>
