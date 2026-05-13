@@ -1,0 +1,21 @@
+<svg width="480" height="120" viewBox="0 0 480 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Chain of beacons -->
+  <rect x="20" y="35" width="100" height="50" rx="10" fill="#1a2d4a" stroke="#c9a96e" stroke-width="2"/>
+  <text x="70" y="56" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="9">Beacon #1</text>
+  <text x="70" y="72" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="8">root: 1Fu3e...</text>
+  <!-- Chain link -->
+  <line x1="120" y1="60" x2="155" y2="60" stroke="#c9a96e" stroke-width="2"/>
+  <rect x="160" y="35" width="100" height="50" rx="10" fill="#1a2d4a" stroke="#c9a96e" stroke-width="2"/>
+  <text x="210" y="56" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="9">Beacon #2</text>
+  <text x="210" y="72" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="8">root: KsFrq...</text>
+  <!-- Chain link -->
+  <line x1="260" y1="60" x2="295" y2="60" stroke="#c9a96e" stroke-width="2"/>
+  <rect x="300" y="35" width="100" height="50" rx="10" fill="#1a2d4a" stroke="#c9a96e" stroke-width="2"/>
+  <text x="350" y="56" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="9">Beacon #3</text>
+  <text x="350" y="72" text-anchor="middle" fill="#b8c5d6" font-family="monospace" font-size="8">root: z/RpD...</text>
+  <!-- Parent arrows -->
+  <text x="140" y="90" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="7">parent</text>
+  <text x="280" y="90" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="7">parent</text>
+  <text x="70" y="100" text-anchor="middle" fill="#8899aa" font-family="sans-serif" font-size="9">genesis</text>
+  <text x="350" y="100" text-anchor="middle" fill="#c9a96e" font-family="sans-serif" font-size="9">latest</text>
+</svg>
