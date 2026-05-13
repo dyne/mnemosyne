@@ -3,9 +3,9 @@ package domain
 // Route is an inclusion proof — a cryptographic path from a leaf (memory)
 // to a root (constellation), verifying that the memory is part of the tree.
 type Route struct {
-	Leaf  string   `json:"leaf"`
-	Root  string   `json:"root"`
-	Path  []string `json:"path"`
+	Leaf string   `json:"leaf"`
+	Root string   `json:"root"`
+	Path []string `json:"path"`
 }
 
 // WitnessResult is the outcome of verifying an inclusion proof.

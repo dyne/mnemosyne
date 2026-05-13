@@ -165,11 +165,11 @@ func (s *Server) handleAnchorBeacon(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	beaconID := storage.NewBeaconID()
 	beacon := &domain.Beacon{
-		ID:              beaconID,
-		Root:            root,
-		ParentBeaconID:  parentBeaconID,
-		ProofCount:      len(memories),
-		CreatedAt:       now,
+		ID:             beaconID,
+		Root:           root,
+		ParentBeaconID: parentBeaconID,
+		ProofCount:     len(memories),
+		CreatedAt:      now,
 	}
 
 	if err := s.store.AnchorBeacon(r.Context(), beacon); err != nil {
@@ -432,11 +432,11 @@ func (s *Server) handleExtendBeacon(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	childID := storage.NewBeaconID()
 	child := &domain.Beacon{
-		ID:              childID,
-		Root:            root,
-		ParentBeaconID:  string(parentID),
-		ProofCount:      len(leaves),
-		CreatedAt:       now,
+		ID:             childID,
+		Root:           root,
+		ParentBeaconID: string(parentID),
+		ProofCount:     len(leaves),
+		CreatedAt:      now,
 	}
 
 	if err := s.store.AnchorBeacon(r.Context(), child); err != nil {
@@ -477,4 +477,3 @@ func (s *Server) handleExtendBeacon(w http.ResponseWriter, r *http.Request) {
 		"root":    root,
 	})
 }
-

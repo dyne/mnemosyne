@@ -49,8 +49,8 @@ func TestSQLiteStore_AnchorAndLatestBeacon(t *testing.T) {
 	defer s.Close()
 
 	beacon := &domain.Beacon{
-		ID:        "beacon-1",
-		Root:      "root-hash",
+		ID:         "beacon-1",
+		Root:       "root-hash",
 		ProofCount: 4,
 	}
 	err = s.AnchorBeacon(context.Background(), beacon)

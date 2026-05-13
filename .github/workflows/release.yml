@@ -66,12 +66,12 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - uses: jdx/mise-action@v2
+
       - name: Install Zenroom
         run: |
-          curl -fsSL -o /tmp/zenroom.zip https://github.com/dyne/Zenroom/releases/download/v5.31.2/zenroom-linux.zip
-          unzip -o /tmp/zenroom.zip -d /usr/local/bin/
-          chmod +x /usr/local/bin/zenroom
-          zenroom -h
+          mise install
+          mise exec -- zenroom -h
 
       - name: Run tests with coverage gate
         run: |
