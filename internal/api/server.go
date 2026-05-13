@@ -414,7 +414,7 @@ func (s *Server) handleWitness(w http.ResponseWriter, r *http.Request) {
 		if !result.Valid {
 			evtType = domain.EventVerifyFailed
 		}
-		s.ledger.Append(r.Context(), evtType, nil)
+		_, _ = s.ledger.Append(r.Context(), evtType, nil)
 	}
 
 	writeJSON(w, http.StatusOK, result)
@@ -453,7 +453,7 @@ func (s *Server) handleCreateAnchor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.ledger != nil {
-		s.ledger.Append(r.Context(), domain.EventAnchorCreated, map[string]any{
+		_, _ = s.ledger.Append(r.Context(), domain.EventAnchorCreated, map[string]any{
 			"anchor_id":   receipt.AnchorID,
 			"backend":     receipt.Backend,
 			"hash":        req.Hash,
@@ -707,7 +707,7 @@ func (s *Server) handleFullVerify(w http.ResponseWriter, r *http.Request) {
 		if result.Status != "valid" {
 			evtType = domain.EventVerifyFailed
 		}
-		s.ledger.Append(r.Context(), evtType, nil)
+		_, _ = s.ledger.Append(r.Context(), evtType, nil)
 	}
 
 	writeJSON(w, http.StatusOK, result)

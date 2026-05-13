@@ -110,9 +110,9 @@ func TestLedger_AppendChain(t *testing.T) {
 func TestLedger_VerifyChain(t *testing.T) {
 	l := newTestLedger(t)
 
-	l.Append(context.Background(), domain.EventMemoryRecorded, map[string]string{"m": "1"})
-	l.Append(context.Background(), domain.EventRootSealed, map[string]string{"root": "r1"})
-	l.Append(context.Background(), domain.EventCheckpointCreated, map[string]string{"chk": "c1"})
+	_, _ = l.Append(context.Background(), domain.EventMemoryRecorded, map[string]string{"m": "1"})
+	_, _ = l.Append(context.Background(), domain.EventRootSealed, map[string]string{"root": "r1"})
+	_, _ = l.Append(context.Background(), domain.EventCheckpointCreated, map[string]string{"chk": "c1"})
 
 	verification, err := l.Verify(context.Background())
 	if err != nil {
@@ -128,8 +128,8 @@ func TestLedger_VerifyChain(t *testing.T) {
 
 func TestLedger_TamperDetection(t *testing.T) {
 	l := newTestLedger(t)
-	l.Append(context.Background(), domain.EventMemoryRecorded, map[string]string{"m": "1"})
-	l.Append(context.Background(), domain.EventRootSealed, map[string]string{"root": "r1"})
+	_, _ = l.Append(context.Background(), domain.EventMemoryRecorded, map[string]string{"m": "1"})
+	_, _ = l.Append(context.Background(), domain.EventRootSealed, map[string]string{"root": "r1"})
 
 	// Tamper with the file by appending junk
 	f, err := os.OpenFile(l.path, os.O_APPEND|os.O_WRONLY, 0644)
@@ -137,7 +137,7 @@ func TestLedger_TamperDetection(t *testing.T) {
 		t.Fatalf("open for tamper: %v", err)
 	}
 	f.WriteString(`{"seq":3,"event_type":"BAD_EVENT","previous_hash":"invalid","event_hash":"bad"}` + "\n")
-	f.Close()
+	_ = f.Close()
 
 	verification, err := l.Verify(context.Background())
 	if err != nil {
@@ -181,7 +181,7 @@ func TestLedger_ListEvents_Pagination(t *testing.T) {
 	l := newTestLedger(t)
 
 	for i := 0; i < 5; i++ {
-		l.Append(context.Background(), domain.EventMemoryRecorded, map[string]int{"n": i})
+		_, _ = l.Append(context.Background(), domain.EventMemoryRecorded, map[string]int{"n": i})
 	}
 
 	events, err := l.ListEvents(context.Background(), domain.LedgerListOptions{Limit: 2})

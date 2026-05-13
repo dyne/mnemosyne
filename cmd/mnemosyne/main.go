@@ -154,14 +154,14 @@ func setupServer(cfg config) (http.Handler, *storage.SQLiteStore, error) {
 	ledgerPath := filepath.Join(cfg.dataDir, "ledger.ndjson")
 	ledger, err := ndjson.New(ledgerPath, cfg.contractsDir, cfg.ledgerKeyRef, executor)
 	if err != nil {
-		store.Close()
+		_ = store.Close()
 		return nil, nil, fmt.Errorf("ledger: %w", err)
 	}
 
 	// Anchor
 	anchor, err := local.New(cfg.contractsDir, cfg.ledgerKeyRef, executor)
 	if err != nil {
-		store.Close()
+		_ = store.Close()
 		return nil, nil, fmt.Errorf("anchor: %w", err)
 	}
 

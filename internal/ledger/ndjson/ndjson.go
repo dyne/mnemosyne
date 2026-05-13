@@ -101,7 +101,7 @@ func (l *Ledger) Append(ctx context.Context, typ domain.EventType, payload any) 
 	if err != nil {
 		return domain.LedgerReceipt{}, fmt.Errorf("open ledger: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := fmt.Fprintln(f, string(line)); err != nil {
 		return domain.LedgerReceipt{}, fmt.Errorf("write ledger: %w", err)
@@ -129,7 +129,7 @@ func (l *Ledger) GetEvent(ctx context.Context, seq uint64) (domain.LedgerEvent, 
 		}
 		return domain.LedgerEvent{}, fmt.Errorf("open ledger: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	var lineNum uint64
@@ -158,7 +158,7 @@ func (l *Ledger) ListEvents(ctx context.Context, opts domain.LedgerListOptions) 
 		}
 		return nil, fmt.Errorf("open ledger: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	limit := opts.Limit
 	if limit <= 0 || limit > 1000 {
@@ -215,7 +215,7 @@ func (l *Ledger) Verify(ctx context.Context) (domain.LedgerVerification, error) 
 		}
 		return domain.LedgerVerification{}, fmt.Errorf("open ledger: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var events []domain.LedgerEvent
 	scanner := bufio.NewScanner(f)

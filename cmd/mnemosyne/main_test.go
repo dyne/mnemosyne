@@ -205,19 +205,19 @@ func TestRun_GracefulShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	contractsDir := tmpDir + "/contracts"
-	os.MkdirAll(contractsDir, 0755)
+	_ = os.MkdirAll(contractsDir, 0755)
 	for _, name := range []string{"hash.zen", "keygen.zen", "sign.zen", "verify_signature.zen"} {
 		src := "../../zenflows/" + name
 		if data, err := os.ReadFile(src); err == nil {
-			os.WriteFile(filepath.Join(contractsDir, name), data, 0644)
+			_ = os.WriteFile(filepath.Join(contractsDir, name), data, 0644)
 		}
 	}
 	webDir := tmpDir + "/web"
-	os.MkdirAll(webDir+"/static", 0755)
-	os.WriteFile(webDir+"/index.html", []byte("<html></html>"), 0644)
+	_ = os.MkdirAll(webDir+"/static", 0755)
+	_ = os.WriteFile(webDir+"/index.html", []byte("<html></html>"), 0644)
 
 	cmd := exec.Command(os.Args[0], "-test.run=TestRun_GracefulShutdown", "-test.v")
 	cmd.Env = append(os.Environ(), "MNEMOSYNE_TEST_SHUTDOWN=1", "MNEMOSYNE_TEST_DIR="+tmpDir)
@@ -229,7 +229,7 @@ func TestRun_GracefulShutdown(t *testing.T) {
 	}
 
 	time.Sleep(500 * time.Millisecond)
-	cmd.Process.Signal(syscall.SIGTERM)
+	_ = cmd.Process.Signal(syscall.SIGTERM)
 
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
@@ -239,7 +239,7 @@ func TestRun_GracefulShutdown(t *testing.T) {
 			t.Logf("stderr: %s", stderr.String())
 		}
 	case <-time.After(5 * time.Second):
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		t.Fatal("subprocess did not shut down")
 	}
 }
