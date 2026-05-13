@@ -1,5 +1,5 @@
-<svg width="560" height="200" viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
-  <rect width="560" height="200" rx="12" fill="#faf8f5"/>
+<svg width="800" height="286" viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="286" rx="12" fill="#faf8f5"/>
   <!-- User -->
   <circle cx="70" cy="100" r="22" fill="#e8d5b7" stroke="#c9a96e" stroke-width="2"/>
   <text x="70" y="105" text-anchor="middle" fill="#c9a96e" font-family="monospace" font-size="14">U</text>
