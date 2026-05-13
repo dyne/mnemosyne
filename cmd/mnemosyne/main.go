@@ -95,7 +95,11 @@ func run(environ []string) error {
 	if err != nil {
 		return err
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			log.Printf("ERROR closing storage: %v", err)
+		}
+	}()
 
 	srv := &http.Server{
 		Addr:         cfg.addr,
@@ -111,7 +115,9 @@ func run(environ []string) error {
 		<-sigCh
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		srv.Shutdown(ctx)
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("ERROR shutting down server: %v", err)
+		}
 	}()
 
 	fmt.Printf("mnemosyne listening on %s\n", cfg.addr)

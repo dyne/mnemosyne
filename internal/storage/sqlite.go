@@ -16,6 +16,10 @@ type SQLiteStore struct {
 	db *sql.DB
 }
 
+type contextKey string
+
+const timeContextKey contextKey = "time"
+
 func NewSQLiteStore(path string) (*SQLiteStore, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -23,12 +27,12 @@ func NewSQLiteStore(path string) (*SQLiteStore, error) {
 	}
 
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("sqlite ping: %w", err)
 	}
 
 	if err := migrate(db); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("sqlite migrate: %w", err)
 	}
 
@@ -118,7 +122,9 @@ func (s *SQLiteStore) MemoriesByBeacon(ctx context.Context, beaconID domain.Beac
 	if err != nil {
 		return nil, fmt.Errorf("query memories: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var memories []*domain.Memory
 	for rows.Next() {
@@ -127,7 +133,9 @@ func (s *SQLiteStore) MemoriesByBeacon(ctx context.Context, beaconID domain.Beac
 		if err := rows.Scan(&m.ID, &payloadJSON, &m.LeafHash, &m.BeaconID, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan memory: %w", err)
 		}
-		json.Unmarshal([]byte(payloadJSON), &m.Payload)
+		if err := json.Unmarshal([]byte(payloadJSON), &m.Payload); err != nil {
+			return nil, fmt.Errorf("unmarshal payload: %w", err)
+		}
 		m.CreatedAt, _ = parseTime(createdAt)
 		memories = append(memories, &m)
 	}
@@ -202,7 +210,9 @@ func (s *SQLiteStore) TreeNodesByBeacon(ctx context.Context, beaconID string) ([
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var nodes []TreeNode
 	for rows.Next() {
@@ -222,7 +232,7 @@ func (s *SQLiteStore) Close() error {
 const timeFormat = "2006-01-02T15:04:05.000000Z"
 
 func ctxTime(ctx context.Context) time.Time {
-	if t, ok := ctx.Value("time").(time.Time); ok {
+	if t, ok := ctx.Value(timeContextKey).(time.Time); ok {
 		return t
 	}
 	return time.Now().UTC()

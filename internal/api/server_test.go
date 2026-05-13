@@ -31,13 +31,13 @@ func newTestServer(t *testing.T) *Server {
 	}
 
 	dbPath := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	t.Cleanup(func() { os.Remove(dbPath) })
+	t.Cleanup(func() { _ = os.Remove(dbPath) })
 
 	store, err := storage.NewSQLiteStore(dbPath)
 	if err != nil {
 		t.Fatalf("storage: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { _ = store.Close() })
 
 	executor := zenroom.NewExecutor(bin)
 	tree := merkle.NewTree(executor, store, "../../zenflows")
@@ -63,7 +63,9 @@ func TestRememberAndRecall(t *testing.T) {
 		MemoryID string `json:"memory_id"`
 		LeafHash string `json:"leaf_hash"`
 	}
-	json.Unmarshal(w.Body.Bytes(), &m)
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
 	if m.MemoryID == "" {
 		t.Error("expected non-empty memory_id")
 	}
@@ -100,7 +102,9 @@ func TestProofGenerationAndVerification(t *testing.T) {
 		var m struct {
 			MemoryID string `json:"memory_id"`
 		}
-		json.Unmarshal(w.Body.Bytes(), &m)
+		if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+			t.Fatalf("decode memory %d: %v", i, err)
+		}
 		if i == 3 {
 			memID = m.MemoryID
 		}
@@ -116,7 +120,9 @@ func TestProofGenerationAndVerification(t *testing.T) {
 	}
 
 	var proof map[string]any
-	json.Unmarshal(w.Body.Bytes(), &proof)
+	if err := json.Unmarshal(w.Body.Bytes(), &proof); err != nil {
+		t.Fatalf("decode proof: %v", err)
+	}
 	t.Logf("proof: %v", proof)
 
 	if len(proof["path"].([]any)) == 0 {
@@ -137,7 +143,9 @@ func TestProofGenerationAndVerification(t *testing.T) {
 	var result struct {
 		Valid bool `json:"valid"`
 	}
-	json.Unmarshal(w2.Body.Bytes(), &result)
+	if err := json.Unmarshal(w2.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode verification: %v", err)
+	}
 	if !result.Valid {
 		t.Error("expected valid proof")
 	}
@@ -171,7 +179,9 @@ func TestVerifyInvalidProof(t *testing.T) {
 	var result struct {
 		Valid bool `json:"valid"`
 	}
-	json.Unmarshal(w.Body.Bytes(), &result)
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode verification: %v", err)
+	}
 	if result.Valid {
 		t.Error("expected invalid proof")
 	}

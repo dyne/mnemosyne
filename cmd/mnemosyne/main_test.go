@@ -126,10 +126,18 @@ func TestSetupServer_InvalidDB(t *testing.T) {
 func TestSetupServer_Success(t *testing.T) {
 	tmpDir := t.TempDir()
 	contractsDir := tmpDir + "/contracts"
-	os.MkdirAll(contractsDir, 0755)
-	os.WriteFile(contractsDir+"/hash.zen", []byte("Scenario 'simple': hash\nGiven nothing\nWhen I create the random object of '256' bits\nThen print the 'random object'"), 0644)
-	os.MkdirAll(tmpDir+"/web/static", 0755)
-	os.WriteFile(tmpDir+"/web/index.html", []byte("<html></html>"), 0644)
+	if err := os.MkdirAll(contractsDir, 0755); err != nil {
+		t.Fatalf("create contracts dir: %v", err)
+	}
+	if err := os.WriteFile(contractsDir+"/hash.zen", []byte("Scenario 'simple': hash\nGiven nothing\nWhen I create the random object of '256' bits\nThen print the 'random object'"), 0644); err != nil {
+		t.Fatalf("write contract: %v", err)
+	}
+	if err := os.MkdirAll(tmpDir+"/web/static", 0755); err != nil {
+		t.Fatalf("create web dir: %v", err)
+	}
+	if err := os.WriteFile(tmpDir+"/web/index.html", []byte("<html></html>"), 0644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
 
 	handler, store, err := setupServer(config{
 		dbPath:       tmpDir + "/test.db",
@@ -139,7 +147,11 @@ func TestSetupServer_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setupServer: %v", err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("close store: %v", err)
+		}
+	}()
 	if handler == nil {
 		t.Error("expected non-nil handler")
 	}

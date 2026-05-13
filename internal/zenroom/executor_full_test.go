@@ -159,7 +159,7 @@ func TestWriteTemp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("writeTemp: %v", err)
 	}
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		t.Error("temp file does not exist")
 	}

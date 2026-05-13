@@ -10,13 +10,13 @@ import (
 
 func TestSQLiteStore_RememberAndRecall(t *testing.T) {
 	path := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	s, err := NewSQLiteStore(path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	m, err := s.Remember(context.Background(), map[string]any{"hello": "world"}, "deadbeef", "beacon-1")
 	if err != nil {
@@ -40,13 +40,13 @@ func TestSQLiteStore_RememberAndRecall(t *testing.T) {
 
 func TestSQLiteStore_AnchorAndLatestBeacon(t *testing.T) {
 	path := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	s, err := NewSQLiteStore(path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	beacon := &domain.Beacon{
 		ID:         "beacon-1",
@@ -69,13 +69,13 @@ func TestSQLiteStore_AnchorAndLatestBeacon(t *testing.T) {
 
 func TestSQLiteStore_RecallNotFound(t *testing.T) {
 	path := "/tmp/mnemosyne-test-" + t.Name() + ".db"
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	s, err := NewSQLiteStore(path)
 	if err != nil {
 		t.Fatalf("NewSQLiteStore: %v", err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
 	_, err = s.Recall(context.Background(), domain.MemoryID("nonexistent"))
 	if err != domain.ErrMemoryNotFound {
